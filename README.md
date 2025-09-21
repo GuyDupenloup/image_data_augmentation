@@ -28,7 +28,7 @@ This library is designed for performance and flexibility, with features includin
 - **GPU utilization**: All functions take a batch of images as input. They are fully vectorized and compilable into Tensorflow's graph, maximizing GPU utilization.
 - **Augmentation variety**: Transformations are applied independently to each image of the input batch, ensuring variety across the batch.
 - **Augmentation intensity control**: A parameter is available to control the fraction of augmented images in the output batch.
-- **Integration in training loops**: Functions are easy to integrate in the training loop, using either preprocessing layers or custom models.
+- **Integration in training loop**: Functions are easy to integrate in the training loop, using either preprocessing layers or custom models.
 
 ## Examples of augmented images
 
@@ -83,7 +83,7 @@ The source code is organized as shown in the table below.
 | Random Erasing  | `erasing.py`       | `random_erasing`         | `RandomErasing`        |
 | Hide-and-Seek   | `hide_and_seek.py` | `random_hide_and_seek`   | `RandomHideAndSeek`    |
 | Grid Mask       | `grid_mask.py`     | `random_grid_mask`       | `RandomGridMask`       |
-| CutBlur         | `cutblur.py`       | `random_cutblur`         | `RandomCutblur`        |
+| CutBlur         | `cutblur.py`       | `random_cutblur`         | `RandomCutBlur`        |
 | CutPaste        | `cutpaste.py`      | `random_cutpaste`        | `RandomCutPaste`       |
 | CutSwap         | `cutswap.py`       | `random_cutswap`         | `RandomSwap`           |
 | Cut Thumbnail   | `cut_thumbnail.py` | `random_cut_thumbnail`   | `RandomCutThumbnail`   |
