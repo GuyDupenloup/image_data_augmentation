@@ -89,6 +89,28 @@ def _get_data_loaders(image_size, num_classes, batch_size, rescaling):
     return train_ds, val_ds
 
 
+def get_base_model(input_shape, num_classes):
+
+    # Get a ResNet50 model
+    resnet_model = tf.keras.applications.ResNet50(
+        weights='imagenet',
+        include_top=False,
+        input_shape=input_shape
+    )
+    
+    # Freeze the model backbone (transfer learning)
+    resnet_model.trainable = False
+
+    # Add classification head
+    inputs = tf.keras.Input(shape=input_shape)
+    x = resnet_model(inputs, training=False)
+    x = tf.keras.layers.GlobalAveragePooling2D()(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    outputs = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
+
+    return tf.keras.Model(inputs, outputs, name='ResNet50')
+                          
+
 def train():
 
     image_shape = (128, 128, 3)
@@ -100,25 +122,8 @@ def train():
     # Get dataloaders for the Flowers dataset
     train_ds, val_ds = _get_data_loaders(image_shape[:2], num_classes, batch_size, rescaling)
 
-    # Get a ResNet50 model
-    resnet_model = tf.keras.applications.ResNet50(
-        weights='imagenet',
-        include_top=False,
-        input_shape=image_shape
-    )
-    
-    # Freeze the model backbone (transfer learning)
-    resnet_model.trainable = False
-
-    # Add classification head
-    inputs = tf.keras.Input(shape=image_shape)
-    x = resnet_model(inputs, training=False)
-    x = tf.keras.layers.GlobalAveragePooling2D()(x)
-    x = tf.keras.layers.Dropout(0.2)(x)
-    outputs = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
-    base_model = tf.keras.Model(inputs, outputs)
-
     # Create custom model
+    base_model = get_base_model(image_shape, num_classes)
     model = CustomModel(base_model)
     
     # Compile the model
