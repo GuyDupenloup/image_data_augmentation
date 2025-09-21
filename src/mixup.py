@@ -64,6 +64,7 @@ def random_mixup(
 
         labels:
             Labels for the input images. Must be **one-hot encoded**.
+            Data type should be tf.float32 (will be cast if not).
 
         alpha:
             A positive float specifying the parameter `alpha` of the Beta distribution 

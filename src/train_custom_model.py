@@ -90,7 +90,6 @@ def _get_data_loaders(image_size, num_classes, batch_size, rescaling):
 
 
 def get_base_model(input_shape, num_classes):
-
     # Get a ResNet50 model
     resnet_model = tf.keras.applications.ResNet50(
         weights='imagenet',
@@ -109,7 +108,7 @@ def get_base_model(input_shape, num_classes):
     outputs = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
 
     return tf.keras.Model(inputs, outputs, name='ResNet50')
-                          
+
 
 def train():
 
