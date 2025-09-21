@@ -22,7 +22,7 @@ def _check_random_cutblur_args(
     check_dataaug_function_arg(
         patch_aspect_ratio,
         context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutblur'},
-        constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
+        constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
     )
     check_dataaug_function_arg(
         blur_factor,
@@ -104,10 +104,11 @@ def random_cutblur(
                 for every batch. Augmented images are at random positions.
               - True: the augmented/original ratio varies stochastically from batch
                 to batch with an expectation equal to `augmentation_ratio`.
+            Augmented images are at random positions in the output mix.
 
     Returns:
         A tensor of the same shape and dtype as the input images, containing a mix
-        of original and CutBlur augmented images. Pixel values are in the same
+        of original and CutBlur-augmented images. Pixel values are in the same
         range as the input images.
     """
 
@@ -152,7 +153,7 @@ def random_cutblur(
 
 class RandomCutBlur(tf.keras.Layer):
     """
-    This keras layer implements the "cutblur" data augmentation technique.
+    This keras layer implements the "CutBlur" data augmentation technique.
     It is intended to be used as a preprocessing layer, similar to Tensorflow's 
     built-in layers such as RandomContrast, RandomFlip, etc.
     

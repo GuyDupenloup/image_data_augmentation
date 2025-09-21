@@ -11,7 +11,7 @@ def _check_random_cutswap_args(
     patch_area, patch_aspect_ratio, augmentation_ratio, bernoulli_mix):
 
     """
-    Checks the arguments passed to the `random_cutblur` function
+    Checks the arguments passed to the `random_cutswap` function
     """
 
     check_dataaug_function_arg(
@@ -74,7 +74,7 @@ def random_cutswap(
 
         patch_area:
             A tuple of two floats specifying the range from which patch areas
-            are sampled. Values must be > 0 and 1, representing fractions 
+            are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
 
         patch_aspect_ratio:
@@ -93,10 +93,11 @@ def random_cutswap(
                 for every batch. Augmented images are at random positions.
               - True: the augmented/original ratio varies stochastically from batch
                 to batch with an expectation equal to `augmentation_ratio`.
+            Augmented images are at random positions in the output mix.
 
     Returns:
         A tensor of the same shape and dtype as the input images, containing a mix
-        of original and CutSwap augmented images.
+        of original and CutSwap-augmented images.
     """
 
     # Check the arguments passed to the function
@@ -147,7 +148,7 @@ def random_cutswap(
 
 class RandomCutSwap(tf.keras.Layer):
     """
-    This keras layer implements the "cutswap" data augmentation 
+    This keras layer implements the "CutSwap" data augmentation 
     technique. It is intended to be used as a preprocessing layer,
     similar to Tensorflow's built-in layers such as RandomContrast,
     RandomFlip, etc.

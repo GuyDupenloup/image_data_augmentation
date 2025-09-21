@@ -94,7 +94,7 @@ def random_erasing(
 
         patch_area:
             A tuple of two floats specifying the range from which patch areas
-            are sampled. Values must be > 0 and 1, representing fractions 
+            are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
 
         patch_aspect_ratio:
@@ -128,21 +128,22 @@ def random_erasing(
                 for every batch. Augmented images are at random positions.
               - True: the augmented/original ratio varies stochastically from batch
                 to batch with an expectation equal to `augmentation_ratio`.
+            Augmented images are at random positions in the output mix.
 
     Returns:
         A tensor of the same shape and dtype as the input images, containing a mix
-        of original and Random-Erasing augmented images. Pixel values are in the same 
+        of original and Random-Erasing-augmented images. Pixel values are in the same 
         range as the input images.
     """
 
     # Check the function arguments
     _check_random_erasing_args(
-            patch_area,
-            patch_aspect_ratio,
-            fill_method,
-            pixels_range,
-            augmentation_ratio,
-            bernoulli_mix
+        patch_area,
+        patch_aspect_ratio,
+        fill_method,
+        pixels_range,
+        augmentation_ratio,
+        bernoulli_mix
     )
 
     original_image_shape = tf.shape(images)
@@ -182,7 +183,7 @@ def random_erasing(
 
 class RandomErasing(tf.keras.Layer):
     """
-    This keras layer implements the "random erasing" data augmentation
+    This keras layer implements the "Random Erasing" data augmentation
     technique. It is intended to be used as a preprocessing layer, similar
     to Tensorflow's built-in layers such as RandomContrast, RandomFlip, etc.
     

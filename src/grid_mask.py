@@ -50,14 +50,17 @@ def _generate_grid_mask(image_shape, unit_length, masked_ratio):
     """
     Samples unit sizes and grid offsets. Applies the offsets to the grid 
     to shift it in both directions. Generates a boolean mask with 
-    value True inside masked areas and False inside transparent areas. 
+    value True inside masked areas and False inside transparent areas.
+    If the image is rectangular, the unit size is calculated using
+    the minimum of the height and width.
     """
 
     batch_size, img_height, img_width = tf.unstack(image_shape[:3])
 
     # Sample unit lengths and calculate masked area lengths
     length_fract = tf.random.uniform([batch_size], minval=unit_length[0], maxval=unit_length[1], dtype=tf.float32)
-    unit_sizes = length_fract * tf.cast(img_width, tf.float32)
+    min_img_edge = tf.minimum(img_height, img_width)
+    unit_sizes = length_fract * tf.cast(min_img_edge, tf.float32)
     masked_area_sizes = tf.round(unit_sizes * masked_ratio)
 
     # Sample grid offsets from range [0, unit_size]
@@ -89,8 +92,8 @@ def _generate_grid_mask(image_shape, unit_length, masked_ratio):
 
     # Determine if each pixel is in the masked area
     in_masked_area = tf.logical_and(
-        pos_x_in_unit >= masked_area_sizes,
-        pos_y_in_unit >= masked_area_sizes
+        pos_x_in_unit < masked_area_sizes,
+        pos_y_in_unit < masked_area_sizes
     )
 
     # Create a boolean mask (True inside masked areas, False outside)
@@ -148,7 +151,8 @@ def random_grid_mask(
         unit_length:
             A tuple of two floats specifying the range from which the side length 
             of each grid unit is sampled. Values must be > 0 and < 1, representing 
-            fractions of the image size.
+            fractions of the image size. If the image is rectangular, the minimum
+            of height and width is used.
 
         masked_ratio:
             A float specifying the side length of the masked region inside
@@ -181,10 +185,11 @@ def random_grid_mask(
                 for every batch. Augmented images are at random positions.
               - True: the augmented/original ratio varies stochastically from batch
                 to batch with an expectation equal to `augmentation_ratio`.
+            Augmented images are at random positions in the output mix.
 
     Returns:
         A tensor of the same shape and dtype as the input images, containing a mix
-        of original and Grid-Mask augmented images. Pixel values are in the same 
+        of original and Grid-Mask-augmented images. Pixel values are in the same 
         range as the input images.
     """
 
@@ -224,7 +229,7 @@ def random_grid_mask(
 
 class RandomGridMask(tf.keras.Layer):
     """
-    This keras layer implements the "grid mask" data augmentation technique.
+    This keras layer implements the "Grid Mask" data augmentation technique.
     It is intended to be used as a preprocessing layer, similar to Tensorflow's 
     built-in layers such as RandomContrast, RandomFlip, etc.
     

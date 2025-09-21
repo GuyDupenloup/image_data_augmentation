@@ -126,10 +126,11 @@ def random_cut_thumbnail(
                 for every batch. Augmented images are at random positions.
               - True: the augmented/original ratio varies stochastically from batch
                 to batch with an expectation equal to `augmentation_ratio`.
+            Augmented images are at random positions in the output mix.
 
     Returns:
         A tensor of the same shape and dtype as the input images, containing a mix
-        of original and Cut-Thumbnail augmented images.
+        of original and Cut-Thumbnail-augmented images.
     """
 
     # Check the arguments passed to the function

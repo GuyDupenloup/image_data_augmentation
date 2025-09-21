@@ -101,7 +101,7 @@ def random_cutmix(
                 [B, H, W,]    --> Grayscale images
 
         labels:
-            Labels for the input images. Must be *one-hot encoded".
+            Labels for the input images. Must be **one-hot encoded**.
 
         alpha:
             A positive float specifying the parameter `alpha` of the Beta distribution 
@@ -124,12 +124,13 @@ def random_cutmix(
                 for every batch. Augmented images are at random positions.
               - True: the augmented/original ratio varies stochastically from batch
                 to batch with an expectation equal to `augmentation_ratio`.
+            Augmented images are at random positions in the output mix.
 
     Returns:
         A tuple `(output_images, output_labels)` where:
             output_images:
                 A tensor of the same shape and dtype as `images`, containing a
-                mix of original and Cutmix augmented images.
+                mix of original and Cutmix-augmented images.
             output_labels:
                 A tensor of the same shape as `labels`, containing the
                 correspondingly mixed labels.
@@ -169,8 +170,9 @@ def random_cutmix(
 
     # Recompute lambda to reflect the actual patch size
     # (there was rounding and clipping)
+    img_area = tf.cast(image_shape[1] * image_shape[2], tf.float32)
     patch_area = tf.cast(patch_size[0], tf.float32) * tf.cast(patch_size[1], tf.float32)
-    lambda_vals = 1.0 - patch_area
+    lambda_vals = 1.0 - (patch_area / img_area)
 
     # Update the labels to reflect the contribution of the pasted patches
     labels = tf.cast(labels, tf.float32)

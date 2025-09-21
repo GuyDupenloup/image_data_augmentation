@@ -5,7 +5,7 @@ import tensorflow as tf
 
 
 def sample_patch_dims(
-    image_shape: tuple[int, int, int, int],
+    image_shape: tf.Tensor,
     patch_area: tuple[float, float],
     patch_aspect_ratio: tuple[float, float]
 ) -> tf.Tensor:
@@ -14,11 +14,11 @@ def sample_patch_dims(
 
     Arguments:
         image_shape:
-            The shape of the images (4D tensor)
+            The shape of the images (4D tensor).
 
         patch_area:
             A tuple of two floats specifying the range from which patch areas
-            are sampled. Values must be > 0 and 1, representing fractions 
+            are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
 
         patch_aspect_ratio:
@@ -27,7 +27,7 @@ def sample_patch_dims(
 
     Returns:
         A tuple of 2 tensors with shape [batch_size]:
-            `(path_height, patch_width)`. 
+            `(patch_height, patch_width)`. 
     """
 
     batch_size, img_height, img_width = tf.unstack(image_shape[:3])
@@ -52,7 +52,7 @@ def sample_patch_dims(
 
 
 def sample_patch_locations(
-    image_shape: tuple[int, int, int, int],
+    image_shape: tf.Tensor,
     patch_size: tuple[tf.Tensor, tf.Tensor]
 ) -> tf.Tensor:
 
@@ -63,7 +63,8 @@ def sample_patch_locations(
 
     Arguments:
         image_shape:
-            The shape of the images (4D tensor)
+            The shape of the images. Either [B, H, W, C] or
+            [B, H, W] (the channel is not used).
 
         patch_size:
             A tuple of 2 tensors with shape [batch_size]:
@@ -99,16 +100,16 @@ def sample_patch_locations(
 
 
 def gen_patch_mask(
-    image_shape: tuple[int, int, int, int],
+    image_shape: tf.Tensor,
     patch_corners: tf.Tensor
 ) -> tf.Tensor:
     """
-    Generate a boolean mask with value True inside patches,
-    False outside.
+    Given opposite corners coordinates of patches, generates
+    a boolean mask with value True inside patches.
 
     Arguments:
         image_shape:
-            The shape of the images (4D tensor)
+            The shape of the images (4D tensor).
 
         patch_corners:
             The opposite corners coordinates (y1, x1, y2, x2) 
@@ -128,12 +129,13 @@ def gen_patch_mask(
     grid_x = tf.broadcast_to(grid_x, image_shape[:3])
     grid_y = tf.broadcast_to(grid_y, image_shape[:3])
 
-    # Create boolean mask with value True inside the rectangles, False outside
+    # Add new axis for broadcasting
     x1 = x1[:, None, None]
     x2 = x2[:, None, None]
     y1 = y1[:, None, None]
     y2 = y2[:, None, None]
     
+    # Create the boolean mask
     mask = (grid_x >= x1) & (grid_x < x2) & (grid_y >= y1) & (grid_y <  y2)
  
     return mask
@@ -145,12 +147,13 @@ def gen_patch_contents(
 ) -> tf.Tensor:
 
     """
-    Generates color contents for erased cells
-    (images filled with solid color or noise).
+    Generates color contents for erased cells (images filled 
+    with solid color or noise).
 
     Arguments:
         images:
-            A 4D tensor, the images being augmented.
+            The images being augmented (4D tensor).
+            Pixels must be in range [0, 255] with tf.int32 data type.
 
         fill_method:
             A string, the method to use to generate the contents.
@@ -194,12 +197,12 @@ def mix_augmented_images(
 
     """
     Mixes original images and augmented images according to a specified
-    augmented/original ratio and method.
+    augmented/original images ratio and method.
 
     The original and augmented images must have the same shape:
-        [B, W, H, 3]  -->  RGB
-        [B, W, H, 1]  -->  Grayscale
-        [B, W, H]     -->  Grayscale
+        [B, H, W, 3]  -->  RGB
+        [B, H, W, 1]  -->  Grayscale
+        [B, H, W]     -->  Grayscale
 
     Arguments:
     ---------
@@ -218,7 +221,8 @@ def mix_augmented_images(
             A boolean specifying the method to use to mix the images:
             - False:
                 The fraction of augmented images in the mix is equal
-                to `augmentation_ratio` for every batch.
+                to `augmentation_ratio` for every batch. Images are
+                at random positions.
             - True:
                 The fraction of augmented images in the mix varies
                 from batch to batch. However, because Bernoulli
@@ -258,7 +262,7 @@ def mix_augmented_images(
 
         if bernoulli_mix:
             # For each image position in the output mix, make a Bernoulli
-			# experiment to decide if the augmented image takes it.
+            # experiment to decide if the augmented image takes it.
             probs = tf.random.uniform([batch_size], minval=0.0, maxval=1.0, dtype=tf.float32)
             mask = tf.where(probs < augmentation_ratio, True, False)
         else:
@@ -294,10 +298,10 @@ def rescale_pixel_values(
     """
     Linearly rescales pixel values of images from one range to another.
 
-    This function applies a linear transformation to each pixel so that values
-    originally in `input_range` are mapped to `output_range`. It also casts
-    the output to the specified `dtype` and clips values to stay within the
-    target range.
+    A linear transformation is applied to each pixel so that values
+    originally in `input_range` are mapped to `output_range`. Output
+    values are clipped to the target range and cast to the specified 
+    data type `dtype`.
 
     Example:
         # Convert uint8 images [0, 255] to float32 [0.0, 1.0]
@@ -305,16 +309,16 @@ def rescale_pixel_values(
 
     Args:
         images:
-            Input image tensor
+            Input images.
         input_range:
-            (min, max) range of input pixel values
+            (min, max) range of input pixel values.
         output_range:
-            (min, max) target range for output pixel values
+            (min, max) target range for output pixel values.
         dtype:
-            Desired output data type (default: tf.float32)
+            Desired output data type.
 
     Returns:
-        Images with pixel values rescaled to `output_range` and cast to `dtype`
+        Images with pixel values rescaled to `output_range` and cast to `dtype`.
     """
 
     if input_range != output_range:

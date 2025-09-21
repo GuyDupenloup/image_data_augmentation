@@ -52,7 +52,7 @@ def _check_random_hide_and_seek_args(
         )
 
 
-def _gen_patch_mask(image_shape, erased_patches, grid_size):
+def _gen_hs_patch_mask(image_shape, erased_patches, grid_size):
     """
     Generates a boolean mask that will be used to erase the patches from 
     the images. Value is True inside areas to erase, False outside.
@@ -73,13 +73,13 @@ def _gen_patch_mask(image_shape, erased_patches, grid_size):
     grid_mask = tf.reshape(grid_mask, [batch_size, grid_size[0], grid_size[1]])
 
     # Calculate width and height of patches
-    patch_height = tf.cast(img_height / grid_size[0], tf.int32)
-    patch_width = tf.cast(img_width / grid_size[1], tf.int32)
-    patch_size = tf.stack([patch_height, patch_width], axis=-1)
+    patch_h = tf.cast(img_height / grid_size[0], tf.int32)
+    patch_w = tf.cast(img_width / grid_size[1], tf.int32)
+    patch_size = tf.stack([patch_h, patch_w], axis=-1)
 
     # Fill patches with the mask values of the corresponding grid points
-    patch_mask = tf.repeat(grid_mask, repeats=patch_height, axis=1)
-    patch_mask = tf.repeat(patch_mask, repeats=patch_width, axis=2)
+    patch_mask = tf.repeat(grid_mask, repeats=patch_h + 1, axis=1)
+    patch_mask = tf.repeat(patch_mask, repeats=patch_w + 1, axis=2)
 
     # Truncate mask to image size
     patch_mask = patch_mask[:, :img_height, :img_width]
@@ -87,7 +87,7 @@ def _gen_patch_mask(image_shape, erased_patches, grid_size):
     return patch_mask, patch_size
 
 
-def _gen_patch_contents(images, grid_size, patch_size, fill_method):
+def _gen_hs_patch_contents(images, grid_size, patch_size, fill_method):
 
     """
     This function generates the color contents of the erased patches,
@@ -176,7 +176,7 @@ def random_hide_and_seek(
             A tuple of two integers specifying the range from which to sample 
             the number of patches to erase.
             The minimum value can be 0. For example, (0, 5) means that 0 to 5
-            patches may be erased.
+            patches can be erased.
 
         fill_method:
             A string specifying how to fill the erased patches.  
@@ -205,10 +205,11 @@ def random_hide_and_seek(
                 for every batch. Augmented images are at random positions.
               - True: the augmented/original ratio varies stochastically from batch
                 to batch with an expectation equal to `augmentation_ratio`.
+            Augmented images are at random positions in the output mix.
 
     Returns:
         A tensor of the same shape and dtype as the input images, containing a mix
-        of original and Hide-and-seek augmented images. Pixel values are in the same 
+        of original and Hide-and-Seek-augmented images. Pixel values are in the same 
         range as the input images.
     """
 
@@ -228,11 +229,11 @@ def random_hide_and_seek(
     pixels_dtype = images.dtype
     images = rescale_pixel_values(images, pixels_range, (0, 255), dtype=tf.int32)
 
-    # Generate a boolean mask with value True inside the areas to erase, False ouside
-    patch_mask, patch_size = _gen_patch_mask(image_shape[:3], erased_patches, grid_size)
+    # Generate a boolean mask with value True inside the areas to erase, False outside
+    patch_mask, patch_size = _gen_hs_patch_mask(image_shape[:3], erased_patches, grid_size)
 
     # Generate the color contents of the erased patches
-    patch_contents = _gen_patch_contents(images, grid_size, patch_size, fill_method)
+    patch_contents = _gen_hs_patch_contents(images, grid_size, patch_size, fill_method)
 
     # Erase the patches from the images and fill them
     images_aug = tf.where(patch_mask[:, :, :, None], patch_contents, images)
@@ -249,7 +250,7 @@ def random_hide_and_seek(
 
 class RandomHideAndSeek(tf.keras.Layer):
     """
-    This keras layer implements the "hide and seek" data augmentation 
+    This keras layer implements the "Hide-and-Seek" data augmentation 
     technique. It is intended to be used as a preprocessing layer,
     similar to Tensorflow's built-in layers such as RandomContrast,
     RandomFlip, etc.

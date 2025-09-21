@@ -32,7 +32,7 @@ def _check_random_mixup_args(alpha, augmentation_ratio, bernoulli_mix):
 def random_mixup(
         images: tf.Tensor,
         labels: tf.Tensor,
-        alpha: float = 2.0,
+        alpha: float = 1.0,
         augmentation_ratio: float = 1.0,
         bernoulli_mix: bool = False
     ) -> tf.Tensor:
@@ -63,11 +63,11 @@ def random_mixup(
                 [B, H, W,]    --> Grayscale images
 
         labels:
-            Labels for the input images. Must be *one-hot encoded".
+            Labels for the input images. Must be **one-hot encoded**.
 
         alpha:
             A positive float specifying the parameter `alpha` of the Beta distribution 
-            from which `lambda` values are sampled. Controls patch size variability.
+            from which `lambda` values are sampled. Controls blending variability.
             If `alpha` is equal to 1.0 (default value), the distribution is uniform.
 
         augmentation_ratio:
@@ -83,12 +83,13 @@ def random_mixup(
               `augmentation_ratio` in every batch.
             - If True, the number of augmented images is drawn from a Bernoulli
               distribution with expected value equal to `augmentation_ratio`.
+            Augmented images are at random positions in the output mix.
 
     Returns:
         A tuple `(output_images, output_labels)` where:
             output_images:
                 A tensor of the same shape and dtype as `images`, containing a
-                mix of original and Cutmix augmented images.
+                mix of original and Mixup-augmented images.
             output_labels:
                 A tensor of the same shape as `labels`, containing the
                 correspondingly mixed labels.
@@ -121,6 +122,7 @@ def random_mixup(
 
     # Weigh the labels
     lambda_vals = tf.reshape(lambda_vals, [batch_size, 1])
+    labels = tf.cast(labels, tf.float32)
     labels_aug = lambda_vals * labels + (1.0 - lambda_vals) * shuffled_labels
 
     # Mix the original/augmented images and labels

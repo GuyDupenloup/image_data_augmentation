@@ -3,20 +3,20 @@
 
 import tensorflow as tf
 from dataaug_utils import (
-    check_dataaug_function_arg, rescale_pixel_values, sample_patch_dims,
-    sample_patch_locations, gen_patch_mask, gen_patch_contents, mix_augmented_images
+    check_dataaug_function_arg, rescale_pixel_values, sample_patch_locations, 
+    gen_patch_mask, gen_patch_contents, mix_augmented_images
 )
 
 
-def _check_random_cutout_args(area_ratio, fill_method, pixels_range, augmentation_ratio, bernoulli_mix):
+def _check_random_cutout_args(patch_area, fill_method, pixels_range, augmentation_ratio, bernoulli_mix):
 
     """
     Checks the arguments passed to the `random_cutout` function
     """
 
     check_dataaug_function_arg(
-        area_ratio,
-        context={'arg_name': 'area_ratio', 'function_name' : 'random_cutout'},
+        patch_area,
+        context={'arg_name': 'patch_area', 'function_name' : 'random_cutout'},
         constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
     )
 
@@ -131,13 +131,14 @@ def random_cutout(
             A boolean specifying the method to use to mix the original and augmented
             images in the output images:
               - False: the augmented/original ratio is equal to `augmentation_ratio`
-                for every batch. Augmented images are at random positions.
+                for every batch.
               - True: the augmented/original ratio varies stochastically from batch
                 to batch with an expectation equal to `augmentation_ratio`.
+            Augmented images are at random positions in the output mix.
 
     Returns:
         A tensor of the same shape and dtype as the input images, containing a mix
-        of original and Cutout augmented images. Pixel values are in the same range
+        of original and Cutout-augmented images. Pixel values are in the same range
         as the input images.
     """
 
@@ -183,7 +184,7 @@ def random_cutout(
 
 class RandomCutout(tf.keras.Layer):
     """
-    This keras layer implements the "cutout" data augmentation  technique. It is
+    This keras layer implements the "Cutout" data augmentation  technique. It is
     intended to be used as a preprocessing layer, similar to Tensorflow's built-in
     layers such as RandomContrast, RandomFlip, etc.
 
