@@ -101,7 +101,7 @@ def random_cutblur(
             A boolean specifying the method to use to mix the original and augmented
             images in the output images:
               - False: the augmented/original ratio is equal to `augmentation_ratio`
-                for every batch. Augmented images are at random positions.
+                for every batch.
               - True: the augmented/original ratio varies stochastically from batch
                 to batch with an expectation equal to `augmentation_ratio`.
             Augmented images are at random positions in the output mix.
