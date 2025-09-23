@@ -89,8 +89,9 @@ def random_cutblur(
             aspect ratios are sampled. Values must be > 0.
 
         blur_factor:
-            A float specifying the size ratio used to generate the low-resolution
-            image. Smaller values produce stronger blur.
+            A float specifying the size of the low-resolution images (they all 
+            have the same size). Values must be > 0 and < 1, representing fractions 
+            of the image size. Smaller values produce stronger blur.
 
         augmentation_ratio:
             A float in the interval [0, 1] specifying the augmented/original

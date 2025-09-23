@@ -198,8 +198,9 @@ def mix_augmented_images(
     """
     Mixes original images and augmented images according to a specified
     augmented/original images ratio and method.
+    The augmented images are at random positions in the output mix.
 
-    The original and augmented images must have the same shape:
+    The original and augmented images must have the same shape, one of:
         [B, H, W, 3]  -->  RGB
         [B, H, W, 1]  -->  Grayscale
         [B, H, W]     -->  Grayscale
@@ -221,13 +222,11 @@ def mix_augmented_images(
             A boolean specifying the method to use to mix the images:
             - False:
                 The fraction of augmented images in the mix is equal
-                to `augmentation_ratio` for every batch. Images are
-                at random positions.
+                to `augmentation_ratio` for every batch.
             - True:
-                The fraction of augmented images in the mix varies
-                from batch to batch. However, because Bernoulli
-                experiments are used, the expectation of the fraction
-                is equal to `augmentation_ratio`.
+                The fraction of augmented images in the mix varies from batch
+                to batch. Because Bernoulli experiments are used, the expectation
+                of the fraction is equal to `augmentation_ratio`.
 
     Returns:
     -------
@@ -270,8 +269,8 @@ def mix_augmented_images(
             num_augmented = augmentation_ratio * tf.cast(batch_size, tf.float32)
             num_augmented = tf.cast(tf.round(num_augmented), tf.int32)
 
-            # Generate a mask set to True (resp. False) for positions in the mix
-            # to be occupied by augmented (resp. original) images
+            # Generate a mask set to True for positions in the mix
+            # occupied by augmented images, False by original images
             grid = tf.range(batch_size)
             mask = tf.where(grid < num_augmented, True, False)
 

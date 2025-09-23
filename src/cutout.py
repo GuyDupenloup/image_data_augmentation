@@ -106,6 +106,7 @@ def random_cutout(
 
         patch_area:
             A float specifying the patch area as a fraction of the image area.
+            Values must be > 0 and < 1.
 
         fill_method:
             A string specifying how to fill the erased patches.  

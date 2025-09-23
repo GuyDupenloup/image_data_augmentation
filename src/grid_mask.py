@@ -59,8 +59,9 @@ def _generate_grid_mask(image_shape, unit_length, masked_ratio):
 
     # Sample unit lengths and calculate masked area lengths
     length_fract = tf.random.uniform([batch_size], minval=unit_length[0], maxval=unit_length[1], dtype=tf.float32)
-    min_img_edge = tf.minimum(img_height, img_width)
-    unit_sizes = length_fract * tf.cast(min_img_edge, tf.float32)
+    
+    min_img_side = tf.minimum(img_height, img_width)
+    unit_sizes = length_fract * tf.cast(min_img_side, tf.float32)
     masked_area_sizes = tf.round(unit_sizes * masked_ratio)
 
     # Sample grid offsets from range [0, unit_size]
@@ -126,13 +127,13 @@ def random_grid_mask(
     the masked areas are erased and filled with a solid color or noise.
 
     For each image in the batch:
-    1. A unit size is sampled from the specified range.
-    2. A grid is generated using this unit size.
-    3. Random offsets sampled in the range [0, unit_size] are applied to the grid
+    1. A unit side length is sampled from the specified range.
+    2. A grid is generated using this unit side length.
+    3. Random offsets sampled in the range [0, unit_side_length] are applied to the grid
        to shift it in both directions.
     4. The grid is applied to the image.
 
-    Unit sizes and grid offsets are sampled independently for each image, ensuring 
+    Unit side lengths and grid offsets are sampled independently for each image, ensuring 
     variety across the batch.
 
     By default, the augmented/original images ratio in the output mix is `1.0`. 
