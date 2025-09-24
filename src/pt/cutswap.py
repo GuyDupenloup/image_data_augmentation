@@ -1,0 +1,160 @@
+
+import math
+import torch
+import torch.nn.functional as F
+from torchvision.transforms import v2
+from typing import Tuple, Union
+
+from dataaug_utils import (
+    check_dataaug_function_arg, sample_patch_dims, 
+    sample_patch_locations, gen_patch_mask, mix_augmented_images
+)
+
+
+class RandomCutSwap(v2.Transform):
+    """
+   Applies the "CutSwap" data augmentation technique to a batch of images.
+    
+    Reference paper:
+        Jianjian Qin, Chunzhi Gu, Jun Yu, and Chao Zhang (2013). "Multilevel 
+        Saliency-Guided Self-Supervised Learning for Image Anomaly Detection"
+
+    For each image in the batch, the function:
+    1. Samples a patch size based on the specified area and aspect ratio ranges.
+    2. Chooses random locations in the image for two patches of the sampled size.
+       The two patches may overlap.
+    3. Swaps the contents of the two patches.
+
+    Patch sizes and locations are sampled independently for each image, ensuring 
+    variety across the batch.
+
+    By default, the augmented/original image ratio in the output mix is `1.0`. 
+    This may be too aggressive depending on the use case, so you may want to lower it.
+
+    Arguments:
+        images:
+            Input RGB or grayscale images.
+            Supported shapes:
+                [B, H, W, 3]  --> Color images
+                [B, H, W, 1]  --> Grayscale images
+                [B, H, W,]    --> Grayscale images
+
+        patch_area:
+            A tuple of two floats specifying the range from which patch areas
+            are sampled. Values must be > 0 and < 1, representing fractions 
+            of the image area.
+
+        patch_aspect_ratio:
+            A tuple of two floats specifying the range from which patch 
+            height/width aspect ratios are sampled. Values must be > 0.
+
+        augmentation_ratio:
+            A float in the interval [0, 1] specifying the augmented/original
+            images ratio in the output mix. If set to 0, no images are augmented.
+            If set to 1, all the images are augmented.
+
+        bernoulli_mix:
+            A boolean specifying the method to use to mix the original and augmented
+            images in the output images:
+              - False: the augmented/original ratio is equal to `augmentation_ratio`
+                for every batch.
+              - True: the augmented/original ratio varies stochastically from batch
+                to batch with an expectation equal to `augmentation_ratio`.
+            Augmented images are at random positions in the output mix.
+
+    Returns:
+        A tensor of the same shape and dtype as the input images, containing a mix
+        of original and CutSwap-augmented images.
+    """
+
+    def __init__(
+        self,
+        patch_area: tuple[float, float] = (0.05, 0.3),
+        patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
+        augmentation_ratio: float = 1.0,
+        bernoulli_mix: bool = False
+    ):
+        super().__init__()
+
+        # Check that all arguments are valid
+        self._check_random_cutswap_args(patch_area, patch_aspect_ratio, augmentation_ratio, bernoulli_mix)
+
+        self.patch_area = patch_area
+        self.patch_aspect_ratio = patch_aspect_ratio
+        self.augmentation_ratio = augmentation_ratio
+        self.bernoulli_mix = bernoulli_mix
+
+
+    def _check_random_cutswap_args(self, patch_area, patch_aspect_ratio, augmentation_ratio, bernoulli_mix):
+
+        """
+        Checks the arguments passed to the `random_cutblur` function
+        """
+
+        check_dataaug_function_arg(
+            patch_area,
+            context={'arg_name': 'patch_area', 'function_name' : 'random_cutpaste'},
+            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
+        )
+        check_dataaug_function_arg(
+            patch_aspect_ratio,
+            context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutpaste'},
+            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
+        )
+        check_dataaug_function_arg(
+            augmentation_ratio,
+            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutpaste'},
+            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
+        )
+        if not isinstance(bernoulli_mix, bool):
+            raise ValueError(
+                'Argument `bernoulli_mix` of function `random_cutpaste`: '
+                f'expecting a boolean value\nReceived: {bernoulli_mix}'
+            )
+
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+
+        original_image_shape = images.shape
+
+        # Reshape grayscale images [B,H,W] -> [B,1,H,W]
+        if images.ndim == 3:
+            images = images.unsqueeze(1)
+
+        B, C, H, W = images.shape
+
+        # ---- Sample patches
+        patch_dims = sample_patch_dims(images.shape, self.patch_area, self.patch_aspect_ratio)
+
+        # Sample first patches and generate mask
+        corners_1 = sample_patch_locations(images.shape, patch_dims)
+        mask_1 = gen_patch_mask(images.shape, corners_1)
+        if mask_1.ndim == 3:
+            mask_1 = mask_1.unsqueeze(1)  # [B,1,H,W]
+
+        # Sample second patches and generate mask
+        corners_2 = sample_patch_locations(images.shape, patch_dims)
+        mask_2 = gen_patch_mask(images.shape, corners_2)
+        if mask_2.ndim == 3:
+            mask_2 = mask_2.unsqueeze(1)  # [B,1,H,W]
+
+        # ---- Gather patch contents (all channels)
+        indices_1 = torch.nonzero(mask_1, as_tuple=False)  # [num_pixels, 4]
+        contents_1 = images[indices_1[:, 0], :, indices_1[:, 2], indices_1[:, 3]]  # [num_pixels, C]
+
+        indices_2 = torch.nonzero(mask_2, as_tuple=False)
+        contents_2 = images[indices_2[:, 0], :, indices_2[:, 2], indices_2[:, 3]]
+
+        # ---- Swap patches
+        images_aug = images.clone()
+        images_aug[indices_1[:, 0], :, indices_1[:, 2], indices_1[:, 3]] = contents_2
+        images_aug[indices_2[:, 0], :, indices_2[:, 2], indices_2[:, 3]] = contents_1
+
+        # ---- Mix original and augmented images
+        output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
+
+        # ---- Restore original shape
+        output_images = output_images.reshape(original_image_shape)
+
+        return output_images
+
