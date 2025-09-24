@@ -110,17 +110,18 @@ def _gen_hs_patch_contents(images, grid_size, patch_size, fill_method):
 
     elif fill_method == 'mean_per_channel':
         channel_means = tf.reduce_mean(images, axis=[1, 2])
+		channel_means = tf.cast(channel_means, tf.int32)
         contents = tf.broadcast_to(channel_means[:, None, None, :], image_shape)
 
     elif fill_method == 'random':
         color_grid = tf.random.uniform(
-            [batch_size, grid_size[0], grid_size[1], img_channels],
+            [batch_size, img_channels, grid_size[0], grid_size[1]],
             minval=0, maxval=256,
             dtype=tf.int32
         )
         # Fill patches with the color of the corresponding grid points
-        contents = tf.repeat(color_grid, repeats=patch_size[0], axis=1)
-        contents = tf.repeat(contents, repeats=patch_size[1], axis=2)
+        contents = tf.repeat(color_grid, repeats=patch_size[0] + 1, axis=1)
+        contents = tf.repeat(contents, repeats=patch_size[1] + 1, axis=2)
         contents = contents[:, :img_height, :img_width]
 
     elif fill_method == 'noise':

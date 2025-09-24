@@ -28,7 +28,7 @@ This library is designed for performance and flexibility, with features includin
 - **GPU utilization**: All functions take a batch of images as input. They are fully vectorized and compilable into Tensorflow's graph, maximizing GPU utilization.
 - **Augmentation variety**: Transformations are applied independently to each image of the input batch, ensuring variety across the batch.
 - **Augmentation intensity control**: A parameter is available to control the fraction of augmented images in the output batch.
-- **Integration in training loop**: Functions are easy to integrate in the training loop, using either preprocessing layers or custom models.
+- **Integration in training loop**: Functions are easy to integrate into the training loop to maximize GPU usage. They can be used in preprocessing layers or custom models.
 
 ## Examples of augmented images
 

@@ -176,6 +176,7 @@ def gen_patch_contents(
 
     elif fill_method == 'mean_per_channel':
         channel_means = tf.reduce_mean(images, axis=[1, 2])
+        channel_means = tf.cast(channel_means, tf.int32)
         contents = tf.broadcast_to(channel_means[:, None, None, :], image_shape)
 
     elif fill_method == 'random':
