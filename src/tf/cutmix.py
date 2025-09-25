@@ -2,10 +2,9 @@
 # Licensed under the MIT License. See LICENSE file for details.
 
 import tensorflow as tf
-from dataaug_utils import (
-    check_dataaug_function_arg, check_augment_mix_args, sample_patch_locations,
-    gen_patch_mask, mix_augmented_images
-)
+
+from argument_utils import check_dataaug_function_arg, check_augment_mix_args
+from dataaug_utils import sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
 def _check_random_cutmix_args(alpha, patch_aspect_ratio, augmentation_ratio, bernoulli_mix):
@@ -151,8 +150,8 @@ def random_cutmix(
 
     # Sample patch locations and generate a boolean mask
     # (True inside the patches, False outside)
-    patch_corners = sample_patch_locations(image_shape, patch_size)
-    patch_mask = gen_patch_mask(image_shape, patch_corners)
+    patch_corners = sample_patch_locations(images, patch_size)
+    patch_mask = gen_patch_mask(images, patch_corners)
 
     # Randomly select other images in the batch
     batch_size = image_shape[0]

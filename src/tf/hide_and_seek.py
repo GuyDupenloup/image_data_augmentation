@@ -2,10 +2,9 @@
 # Licensed under the MIT License. See LICENSE file for details.
 
 import tensorflow as tf
-from dataaug_utils import (
-    check_dataaug_function_arg, check_fill_method_arg, check_pixels_range_args,
-    check_augment_mix_args, rescale_pixel_values, mix_augmented_images
-)
+
+from argument_utils import check_dataaug_function_arg, check_fill_method_arg, check_pixels_range_args, check_augment_mix_args
+from dataaug_utils import rescale_pixel_values, mix_augmented_images
 
 
 class RandomHideAndSeek(tf.keras.Layer):

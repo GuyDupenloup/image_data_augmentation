@@ -2,7 +2,9 @@
 # Licensed under the MIT License. See LICENSE file for details.
 
 import tensorflow as tf
-from dataaug_utils import check_dataaug_function_arg, check_augment_mix_args, mix_augmented_images
+
+from argument_utils import check_dataaug_function_arg, check_augment_mix_args
+from dataaug_utils import mix_augmented_images
 
 
 def _check_random_mixup_args(alpha, augmentation_ratio, bernoulli_mix):

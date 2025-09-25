@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
     image_size = (224, 224)
     images_per_function = 4
-    grayscale = True
+    grayscale = False
     shuffling_seed = None   # Set to an int value to always see the same sequence of images
 
     test_list = [
