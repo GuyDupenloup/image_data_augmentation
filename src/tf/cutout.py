@@ -8,41 +8,7 @@ from dataaug_utils import (
 )
 
 
-
-'''
-def _calculate_patch_size(image_size, patch_area):
-    """
-    Calculates the size the patches.
-    Patches are square.
-    Their area is specified as a fraction of the image area.
-    """
-
-    img_height = image_size[0]
-    img_width = image_size[1]
-
-    area = patch_area * tf.cast(img_height, tf.float32) * tf.cast(img_width, tf.float32)
-
-    patch_h = tf.sqrt(area)
-    patch_h = tf.cast(tf.round(patch_h), tf.int32)
-    patch_w = patch_h
-
-    # Clip patch size to image size (for robustness)
-    patch_h = tf.clip_by_value(patch_h, 0, img_height)
-    patch_w = tf.clip_by_value(patch_w, 0, img_width)
-
-    return patch_h, patch_w
-
-
-@tf.function
-def random_cutout(
-        images: tf.Tensor,
-        patch_area: float = 0.1,
-        fill_method: str = 'black',
-        pixels_range: tuple | list = (0, 1),
-        augmentation_ratio: float = 1.0,
-        bernoulli_mix: bool = False
-    ) -> tf.Tensor:
-
+class RandomCutout(tf.keras.Layer):
     """
     Applies the "Cutout" data augmentation technique to a batch of images.
 
@@ -105,56 +71,6 @@ def random_cutout(
         of original and Cutout-augmented images. Pixel values are in the same range
         as the input images.
     """
-
-   # Check the arguments passed to the function
-    _check_random_cutout_args(patch_area, fill_method, pixels_range, augmentation_ratio, bernoulli_mix)
-    
-    original_image_shape = tf.shape(images)
-
-    # Reshape images with shape [B, H, W] to shape [B, H, W, 1]
-    if images.shape.rank == 3:
-        images = tf.expand_dims(images, axis=-1)
-    image_shape = tf.shape(images)
-
-    # Save images data type and rescale pixel values to (0, 255)
-    pixels_dtype = images.dtype
-    images = rescale_pixel_values(images, pixels_range, (0, 255), dtype=tf.int32)
-
-    # Calculate the size of the patches
-    patch_size = _calculate_patch_size(image_shape[1:3], patch_area)
-
-    # Sample patch locations and generate a boolean mask 
-    # with value True inside patches, False outside
-    batch_size = image_shape[0]
-    batched_patch_size = (tf.repeat(patch_size[0], batch_size), tf.repeat(patch_size[1], batch_size))
-    patch_corners = sample_patch_locations(image_shape, batched_patch_size)
-    patch_mask = gen_patch_mask(image_shape, patch_corners)
-
-    # Generate color contents of patches
-    patch_contents = gen_patch_contents(images, fill_method)
-
-    # Erase the patches from the images and fill them
-    images_aug = tf.where(patch_mask[:, :, :, None], patch_contents, images)
-
-    # Mix the original and augmented images
-    output_images, _ = mix_augmented_images(images, images_aug, augmentation_ratio, bernoulli_mix)
-
-    # Restore shape, data type and pixels range of input images
-    output_images = tf.reshape(output_images, original_image_shape)
-    output_images = rescale_pixel_values(output_images, (0, 255), pixels_range, dtype=pixels_dtype)
-
-    return output_images
-'''
-
-class RandomCutout(tf.keras.Layer):
-    """
-    This keras layer implements the "Cutout" data augmentation  technique. It is
-    intended to be used as a preprocessing layer, similar to Tensorflow's built-in
-    layers such as RandomContrast, RandomFlip, etc.
-
-    Refer to the docstring of the random_cutout() function for an explanation 
-    of the parameters of the layer.
-    """
     
     def __init__(self,
         patch_area: float = 0.1,
@@ -214,29 +130,6 @@ class RandomCutout(tf.keras.Layer):
             )
 
 
-    def _calculate_patch_size(self, image_size, patch_area):
-        """
-        Calculates the size the patches.
-        Patches are square.
-        Their area is specified as a fraction of the image area.
-        """
-
-        img_height = image_size[0]
-        img_width = image_size[1]
-
-        area = patch_area * tf.cast(img_height, tf.float32) * tf.cast(img_width, tf.float32)
-
-        patch_h = tf.sqrt(area)
-        patch_h = tf.cast(tf.round(patch_h), tf.int32)
-        patch_w = patch_h
-
-        # Clip patch size to image size (for robustness)
-        patch_h = tf.clip_by_value(patch_h, 0, img_height)
-        patch_w = tf.clip_by_value(patch_w, 0, img_width)
-
-        return patch_h, patch_w
-
-
     def call(self, images, training=None):
 
         original_image_shape = tf.shape(images)
@@ -244,19 +137,25 @@ class RandomCutout(tf.keras.Layer):
         # Reshape images with shape [B, H, W] to shape [B, H, W, 1]
         if images.shape.rank == 3:
             images = tf.expand_dims(images, axis=-1)
+
         image_shape = tf.shape(images)
+        batch_size, img_height, img_width = tf.unstack(image_shape[:3])
 
         # Save images data type and rescale pixel values to (0, 255)
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=tf.int32)
 
-        # Calculate the size of the patches
-        patch_size = self._calculate_patch_size(image_shape[1:3], self.patch_area)
+        # Calculate the patch size
+        area = self.patch_area * tf.cast(img_height * img_width, tf.float32)
+        patch_size = tf.sqrt(area)
+        patch_size = tf.cast(tf.round(patch_size), tf.int32)
+        patch_size = tf.clip_by_value(patch_size, 0, img_height)
+        patch_size = tf.clip_by_value(patch_size, 0, img_width)
 
         # Sample patch locations and generate a boolean mask 
         # with value True inside patches, False outside
         batch_size = image_shape[0]
-        batched_patch_size = (tf.repeat(patch_size[0], batch_size), tf.repeat(patch_size[1], batch_size))
+        batched_patch_size = (tf.repeat(patch_size, batch_size), tf.repeat(patch_size, batch_size))
         patch_corners = sample_patch_locations(image_shape, batched_patch_size)
         patch_mask = gen_patch_mask(image_shape, patch_corners)
 

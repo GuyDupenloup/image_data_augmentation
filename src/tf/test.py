@@ -68,7 +68,7 @@ def _augment_images(images, labels, function):
         erasing = RandomErasing(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
-            fill_method='noise'
+            fill_method='black'
         )
         images_aug = erasing(images)
 
@@ -76,7 +76,7 @@ def _augment_images(images, labels, function):
         hide_and_seek = RandomHideAndSeek(
             grid_size=(4, 4),
             erased_patches=(1, 5),
-            fill_method='random'
+            fill_method='black'
         )
         images_aug = hide_and_seek(images)
 
@@ -84,7 +84,7 @@ def _augment_images(images, labels, function):
         grid_mask = RandomGridMask(
             unit_length=(0.2, 0.4),
             masked_ratio=0.5,
-            fill_method='gray'
+            fill_method='black'
         )
         images_aug = grid_mask(images)
 
@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
     image_size = (224, 224)
     images_per_function = 4
-    grayscale = False
+    grayscale = True
     shuffling_seed = None   # Set to an int value to always see the same sequence of images
 
     test_list = [

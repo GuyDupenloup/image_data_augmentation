@@ -5,28 +5,6 @@ import tensorflow as tf
 from dataaug_utils import check_dataaug_function_arg, rescale_pixel_values, mix_augmented_images
 
 
-
-@tf.function
-def random_hide_and_seek(
-        images: tf.Tensor,
-        grid_size: tuple[int, int] = (8, 8),
-        erased_patches: tuple[int, int] = (0, 5),
-        fill_method: str = 'black',
-        pixels_range: tuple[float, float] = (0, 1),
-        augmentation_ratio: float = 1.0,
-        bernoulli_mix: bool = False
-    ) -> tf.Tensor:
-
- 
-
-    # Check the arguments passed to the function
-    _check_random_hide_and_seek_args(
-        erased_patches, grid_size, fill_method,
-        pixels_range, augmentation_ratio, bernoulli_mix)
-
-
-
-
 class RandomHideAndSeek(tf.keras.Layer):
     """
     Applies the "Hide-and-Seek" data augmentation technique to a batch of images.
@@ -196,7 +174,6 @@ class RandomHideAndSeek(tf.keras.Layer):
         # Calculate width and height of patches
         patch_h = tf.cast(img_height / grid_h, tf.int32)
         patch_w = tf.cast(img_width / grid_w, tf.int32)
-        patch_size = tf.stack([patch_h, patch_w], axis=-1)
 
         # Fill patches with the mask values of the corresponding grid points
         patch_mask = tf.repeat(grid_mask, repeats=patch_h + 1, axis=1)
@@ -205,7 +182,7 @@ class RandomHideAndSeek(tf.keras.Layer):
         # Truncate mask to image size
         patch_mask = patch_mask[:, :img_height, :img_width]
 
-        return patch_mask, patch_size
+        return patch_mask, (patch_h, patch_w)
 
 
     def _gen_patch_contents(self, images, patch_size):
@@ -253,6 +230,7 @@ class RandomHideAndSeek(tf.keras.Layer):
 
 
     def call(self, images, training=None):
+
         original_image_shape = tf.shape(images)
 
         # Reshape images with shape [B, H, W] to [B, H, W, 1]

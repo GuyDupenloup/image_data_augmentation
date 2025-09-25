@@ -122,6 +122,7 @@ class RandomCutThumbnail(tf.keras.Layer):
         The thumbnail area is specified as a fraction of the images area.
         The aspect ratio is the same as the images.
         """
+        
         img_height = tf.cast(image_size[0], tf.float32)
         img_width = tf.cast(image_size[1], tf.float32)
 

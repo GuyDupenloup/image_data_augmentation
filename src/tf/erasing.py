@@ -82,7 +82,7 @@ class RandomErasing(tf.keras.Layer):
     def __init__(self,
         patch_area: tuple[float, float] = (0.05, 0.3),
         patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
-        fill_method: str = 'noise',
+        fill_method: str = 'black',
         pixels_range: tuple[float, float] = (0, 1),
         augmentation_ratio: float = 1.0,
         bernoulli_mix: bool = False,

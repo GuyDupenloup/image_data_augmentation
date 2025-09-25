@@ -32,26 +32,45 @@ def _get_data_loaders(image_size, batch_size):
     return train_ds, val_ds
 
 
-def _get_base_model(image_shape, num_classes):
+def _get_resnet(input_shape, num_classes):
     # Get a ResNet50 model
-    resnet_model = tf.keras.applications.ResNet50(
+    resnet = tf.keras.applications.ResNet50(
         weights='imagenet',
         include_top=False,
-        input_shape=image_shape
+        input_shape=input_shape
     )
     
     # Freeze the model backbone (transfer learning)
-    resnet_model.trainable = False
+    resnet.trainable = False
 
     # Add classification head
-    inputs = tf.keras.Input(shape=image_shape)
-    x = resnet_model(inputs, training=False)
+    inputs = tf.keras.Input(shape=input_shape)
+    x = resnet(inputs, training=False)
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
     x = tf.keras.layers.Dropout(0.2)(x)
     outputs = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
-    base_model = tf.keras.Model(inputs, outputs)
- 
-    return base_model
+
+    return tf.keras.Model(inputs, outputs)
+
+
+def _get_mobilenet(input_shape, num_classes):
+    mobilenet = tf.keras.applications.MobileNet(
+        input_shape=input_shape,
+        alpha=0.25,
+        weights='imagenet',   # use pretrained weights
+        include_top=False     # drop the original 1000-class head
+    )
+
+    # Freeze the model backbone (transfer learning)
+    mobilenet.trainable = False
+
+    inputs = tf.keras.Input(shape=input_shape)
+    x = mobilenet(inputs, training=False)
+    x = tf.keras.layers.GlobalAveragePooling2D()(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    outputs = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
+
+    return tf.keras.Model(inputs, outputs)
 
 
 def _create_augmented_model(base_model, rescaling, pixels_range):
@@ -98,7 +117,8 @@ def train():
     # Get dataloaders for the Flowers dataset
     train_ds, val_ds = _get_data_loaders(image_shape[:2], batch_size)
 
-    base_model = _get_base_model(image_shape, num_classes)
+    # base_model = _get_resnet(image_shape, num_classes)
+    base_model = _get_mobilenet(image_shape, num_classes)
  
     # Add the preprocessing layers
     augmented_model = _create_augmented_model(base_model, rescaling, pixels_range)
