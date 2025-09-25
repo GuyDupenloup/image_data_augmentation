@@ -3,8 +3,8 @@
 
 import tensorflow as tf
 from dataaug_utils import (
-    check_dataaug_function_arg, sample_patch_dims, sample_patch_locations,
-    gen_patch_mask, mix_augmented_images
+    check_dataaug_function_arg, check_augment_mix_args, sample_patch_dims,
+    sample_patch_locations, gen_patch_mask, mix_augmented_images
 )
 
 
@@ -91,21 +91,14 @@ class RandomCutSwap(tf.keras.Layer):
             context={'arg_name': 'patch_area', 'function_name' : 'random_cutswap'},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
+
         check_dataaug_function_arg(
             self.patch_aspect_ratio,
             context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutswap'},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
         )
-        check_dataaug_function_arg(
-            self.augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutswap'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-        if not isinstance(self.bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_cutswap`: '
-                f'expecting a boolean value\nReceived: {self.bernoulli_mix}'
-            )
+
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutSwap')
 
 
     def call(self, images, training=None):

@@ -560,3 +560,35 @@ def check_dataaug_function_arg(
     if 'max_val' in constraints:
         check_value_constraint(arg, constraints['max_val'], 'max', context_msg)
 
+
+def check_pixels_range_args(arg, function_name):
+    check_dataaug_function_arg(
+        arg,
+        context={'arg_name': 'pixels_range', 'function_name': function_name},
+        constraints={'format': 'tuple'}
+    )
+
+
+def check_augment_mix_args(ratio_arg, bernoulli_arg, function_name):
+
+    check_dataaug_function_arg(
+        ratio_arg,
+            context={'arg_name': 'augmentation_ratio', 'function_name' : function_name},
+            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
+        )
+
+    if not isinstance(bernoulli_arg, bool):
+        raise ValueError(
+            f'Argument `bernoulli_mix` of function `{function_name}`: '
+            f'expecting a boolean value\nReceived: {bernoulli_arg}'
+            )
+        
+
+def check_fill_method_arg(arg, function_name):
+    supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
+    if arg not in supported_fill_methods:
+        raise ValueError(
+            f'\nArgument `fill_method` of function `{function_name}`: '
+            f'expecting one of {supported_fill_methods}\n'
+            f'Received: {arg}'
+        )

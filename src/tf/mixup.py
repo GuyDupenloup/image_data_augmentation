@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE file for details.
 
 import tensorflow as tf
-from dataaug_utils import check_dataaug_function_arg, mix_augmented_images
+from dataaug_utils import check_dataaug_function_arg, check_augment_mix_args, mix_augmented_images
 
 
 def _check_random_mixup_args(alpha, augmentation_ratio, bernoulli_mix):
@@ -16,16 +16,7 @@ def _check_random_mixup_args(alpha, augmentation_ratio, bernoulli_mix):
         constraints={'format': 'number'}
     )
 
-    check_dataaug_function_arg(
-        augmentation_ratio,
-        context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_mixup'},
-        constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-    )
-    if not isinstance(bernoulli_mix, bool):
-        raise ValueError(
-            'Argument `bernoulli_mix` of function `random_mixup`: '
-            f'expecting a boolean value\nReceived: {bernoulli_mix}'
-        )
+    check_augment_mix_args(augmentation_ratio, bernoulli_mix, 'random_mixup')
 
 
 @tf.function

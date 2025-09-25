@@ -3,7 +3,7 @@
 
 import tensorflow as tf
 from dataaug_utils import (
-    check_dataaug_function_arg, sample_patch_locations,
+    check_dataaug_function_arg, check_augment_mix_args, sample_patch_locations,
     gen_patch_mask, mix_augmented_images
 )
 
@@ -102,18 +102,8 @@ class RandomCutThumbnail(tf.keras.Layer):
                 f'expecting one of {supported_resize_methods}\n'
                 f'Received: {self.resize_method}'
             )
-
-        check_dataaug_function_arg(
-            self.augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cut_thumbnail'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-
-        if not isinstance(self.bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_cut_thumbnail`: '
-                f'expecting a boolean value\nReceived: {self.bernoulli_mix}'
-            )
+        
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutThumbnail')
 
 
     def _calculate_thumbnail_size(self, image_size):

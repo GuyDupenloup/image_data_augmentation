@@ -2,7 +2,10 @@
 # Licensed under the MIT License. See LICENSE file for details.
 
 import tensorflow as tf
-from dataaug_utils import check_dataaug_function_arg, rescale_pixel_values, mix_augmented_images
+from dataaug_utils import (
+    check_dataaug_function_arg, check_fill_method_arg, check_pixels_range_args,
+    check_augment_mix_args, rescale_pixel_values, mix_augmented_images
+)
 
 
 class RandomHideAndSeek(tf.keras.Layer):
@@ -117,31 +120,9 @@ class RandomHideAndSeek(tf.keras.Layer):
             constraints={'format': 'tuple', 'data_type': 'int', 'min_val': ('>=', 0)}
         )
 
-        supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
-        if self.fill_method not in supported_fill_methods:
-            raise ValueError(
-                '\nArgument `fill_method` of function `random_hide_and_seek`: '
-                f'expecting one of {supported_fill_methods}\n'
-                f'Received: {self.fill_method}'
-            )
-
-        check_dataaug_function_arg(
-            self.pixels_range,
-            context={'arg_name': 'pixels_range', 'function_name' : 'random_hide_and_seek'},
-            constraints={'format': 'tuple'}
-        )
-
-        check_dataaug_function_arg(
-            self.augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_hide_and_seek'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-
-        if not isinstance(self.bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_hide_and_seek`: '
-                f'expecting a boolean value\nReceived: {self.bernoulli_mix}'
-            )
+        check_fill_method_arg(self.fill_method, 'RandomHideAndSeek')
+        check_pixels_range_args(self.pixels_range, 'RandomHideAndSeek')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, RandomHideAndSeek)
 
 
     def _gen_patch_mask(self, image_shape):

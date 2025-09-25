@@ -3,7 +3,7 @@
 
 import tensorflow as tf
 from dataaug_utils import (
-    check_dataaug_function_arg, sample_patch_dims, sample_patch_locations,
+    check_dataaug_function_arg, check_augment_mix_args, sample_patch_dims, sample_patch_locations,
     gen_patch_mask, mix_augmented_images
 )
 
@@ -107,16 +107,8 @@ class RandomCutBlur(tf.keras.Layer):
             context={'arg_name': 'blur_factor', 'function_name' : 'random_cutblur'},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-        check_dataaug_function_arg(
-            self.augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutblur'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-        if not isinstance(self.bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_cutblur`: '
-                f'expecting a boolean value\nReceived: {self.bernoulli_mix}'
-            )
+
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutBlur')
 
 
     def call(self, images, training=None):

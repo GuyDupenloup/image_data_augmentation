@@ -3,8 +3,8 @@
 
 import tensorflow as tf
 from dataaug_utils import (
-    check_dataaug_function_arg, rescale_pixel_values, sample_patch_locations, 
-    gen_patch_mask, gen_patch_contents, mix_augmented_images
+    check_dataaug_function_arg, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args,
+    rescale_pixel_values, sample_patch_locations, gen_patch_mask, gen_patch_contents, mix_augmented_images
 )
 
 
@@ -102,32 +102,9 @@ class RandomCutout(tf.keras.Layer):
             context={'arg_name': 'patch_area', 'function_name' : 'random_cutout'},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-
-        supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
-        if self.fill_method not in supported_fill_methods:
-            raise ValueError(
-                '\nArgument `fill_method` of function `random_cutout`: '
-                f'expecting one of {supported_fill_methods}\n'
-                f'Received: {self.fill_method}'
-            )
-
-        check_dataaug_function_arg(
-            self.pixels_range,
-            context={'arg_name': 'pixels_range', 'function_name' : 'random_cutout'},
-            constraints={'format': 'tuple'}
-        )
-
-        check_dataaug_function_arg(
-            self.augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutout'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-
-        if not isinstance(self.bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_cutout`: '
-                f'expecting a boolean value\nReceived: {self.bernoulli_mix}'
-            )
+        check_fill_method_arg(self.fill_method, 'RandomCutout')
+        check_pixels_range_args(self.pixels_range, 'RandomCutout')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutout')
 
 
     def call(self, images, training=None):
