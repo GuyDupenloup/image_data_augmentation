@@ -2,10 +2,9 @@
 # Licensed under the MIT License. See LICENSE file for details.
 
 import tensorflow as tf
-from dataaug_utils import (
-    check_dataaug_function_arg, check_augment_mix_args, sample_patch_locations,
-    gen_patch_mask, mix_augmented_images
-)
+
+from argument_utils check_dataaug_function_arg, check_augment_mix_args
+from dataaug_utils import sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutThumbnail(tf.keras.Layer):

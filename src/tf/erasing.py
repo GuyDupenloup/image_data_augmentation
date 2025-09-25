@@ -102,7 +102,6 @@ class RandomErasing(tf.keras.Layer):
  
 
     def _check_arguments(self):
-
         """
         Checks the arguments passed to the `random_erasing` function
         """
@@ -131,19 +130,18 @@ class RandomErasing(tf.keras.Layer):
         # Reshape images with shape [B, H, W] to [B, H, W, 1]
         if images.shape.rank == 3:
             images = tf.expand_dims(images, axis=-1)
-        image_shape = tf.shape(images)
 
         # Save images data type and rescale pixel values to (0, 255)
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=tf.int32)
 
         # Sample patch heights and widths
-        patch_dims = sample_patch_dims(image_shape, self.patch_area, self.patch_aspect_ratio)
+        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio)
 
         # Sample patch locations, then generate a boolean mask
         # with value True inside patches, False outside
-        patch_corners = sample_patch_locations(image_shape, patch_dims)
-        patch_mask = gen_patch_mask(image_shape, patch_corners)
+        patch_corners = sample_patch_locations(images, patch_dims)
+        patch_mask = gen_patch_mask(images, patch_corners)
 
         # Generate color contents of patches
         patch_contents = gen_patch_contents(images, self.fill_method)

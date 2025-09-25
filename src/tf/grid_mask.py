@@ -131,7 +131,7 @@ class RandomGridMask(tf.keras.Layer):
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomGridMask')
 
 
-    def _generate_grid_mask(self, image_shape):
+    def _generate_grid_mask(self, images):
         """
         Samples unit sizes and grid offsets. Applies the offsets to the grid 
         to shift it in both directions. Generates a boolean mask with 
@@ -140,6 +140,7 @@ class RandomGridMask(tf.keras.Layer):
         the minimum of the height and width.
         """
 
+        image_shape = tf.shape(images)
         batch_size, img_height, img_width = tf.unstack(image_shape[:3])
 
         # Sample unit lengths and calculate masked area lengths
@@ -200,14 +201,13 @@ class RandomGridMask(tf.keras.Layer):
         # Reshape images with shape [B, H, W] to [B, H, W, 1]
         if images.shape.rank == 3:
             images = tf.expand_dims(images, axis=-1)
-        image_shape = tf.shape(images)
 
         # Save images data type and rescale pixel values to (0, 255)
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=tf.int32)
 
         # Generate a mask to erase the masked areas of units
-        mask = self._generate_grid_mask(image_shape)
+        mask = self._generate_grid_mask(images)
 
         # Generate the contents of the erased areas
         unit_contents = gen_patch_contents(images, self.fill_method)

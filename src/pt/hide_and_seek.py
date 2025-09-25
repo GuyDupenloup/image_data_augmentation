@@ -4,7 +4,8 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from dataaug_utils import check_dataaug_function_arg, rescale_pixel_values, mix_augmented_images
+from argument_utils import check_dataaug_function_arg, check_fill_method_arg, check_pixels_range_args, check_augment_mix_args
+from dataaug_utils import rescale_pixel_values, mix_augmented_images
 
 
 class RandomHideAndSeek(v2.Transform):
@@ -92,9 +93,6 @@ class RandomHideAndSeek(v2.Transform):
     ):
         super().__init__()
 
-        # Check that all arguments are valid
-        self._check_arguments(grid_size, erased_patches, fill_method, pixels_range, augmentation_ratio, bernoulli_mix)
-
         self.grid_size = grid_size
         self.erased_patches = erased_patches
         self.fill_method = fill_method
@@ -102,55 +100,39 @@ class RandomHideAndSeek(v2.Transform):
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
+        self._check_arguments()
 
-    def _check_arguments(self, grid_size, erased_patches, fill_method, pixels_range, augmentation_ratio, bernoulli_mix):
+
+    def _check_arguments(self):
+        """
+        Checks the arguments passed to `RandomHideAndSeek`
+        """
 
         check_dataaug_function_arg(
-            grid_size,
+            self.grid_size,
             context={'arg_name': 'grid_size', 'function_name' : 'random_hide_and_seek'},
             constraints={'format': 'tuple', 'tuple_ordering': 'None', 'data_type': 'int', 'min_val': ('>', 0)}
-       )
+        )
 
         check_dataaug_function_arg(
-            erased_patches,
+            self.erased_patches,
             context={'arg_name': 'erased_patches', 'function_name' : 'random_hide_and_seek'},
             constraints={'format': 'tuple', 'data_type': 'int', 'min_val': ('>=', 0)}
         )
 
-        supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
-        if fill_method not in supported_fill_methods:
-            raise ValueError(
-                '\nArgument `fill_method` of function `random_hide_and_seek`: '
-                f'expecting one of {supported_fill_methods}\n'
-                f'Received: {fill_method}'
-            )
-
-        check_dataaug_function_arg(
-            pixels_range,
-            context={'arg_name': 'pixels_range', 'function_name' : 'random_hide_and_seek'},
-            constraints={'format': 'tuple'}
-        )
-
-        check_dataaug_function_arg(
-            augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_hide_and_seek'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-
-        if not isinstance(bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_hide_and_seek`: '
-                f'expecting a boolean value\nReceived: {bernoulli_mix}'
-            )
+        check_fill_method_arg(self.fill_method, 'RandomHideAndSeek')
+        check_pixels_range_args(self.pixels_range, 'RandomHideAndSeek')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, RandomHideAndSeek)
 
 
-    def _gen_patch_mask(self, image_shape, erased_patches, grid_size, device):
+    def _gen_patch_mask(self, images, erased_patches, grid_size):
         """
         Generates a boolean mask that will be used to erase the patches from 
         the images. Value is True inside areas to erase, False outside.
         """
 
-        batch_size, _, img_height, img_width = image_shape
+        device = images.device
+        batch_size, _, img_height, img_width = images.shape
 
         # Sample the coordinates (x, y) of the grid points where
         # the corresponding patches in the image will be erased
@@ -185,7 +167,7 @@ class RandomHideAndSeek(v2.Transform):
         return patch_mask, patch_size
 
 
-    def _gen_patch_contents(self, images, grid_size, patch_size, fill_method, device):
+    def _gen_patch_contents(self, images, grid_size, patch_size, fill_method):
 
         """
         This function generates the color contents of the erased patches,
@@ -194,7 +176,9 @@ class RandomHideAndSeek(v2.Transform):
         It outputs a tensor with shape [batch_size, img_width, img_height, 3].
         """
 
+        device = images.device
         image_shape = images.shape
+
         batch_size, img_channels, img_height, img_width = image_shape
 
         if fill_method == 'black':
@@ -236,21 +220,18 @@ class RandomHideAndSeek(v2.Transform):
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
-        device = images.device
-
         original_image_shape = images.shape
         if images.ndim == 3:  # i.e., [B, H, W]
             images = images.unsqueeze(1)  # insert a channel dimension at index 1
-        image_shape = images.shape
 
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
         # Generate a boolean mask with value True inside the areas to erase, False outside
-        patch_mask, patch_size = self._gen_patch_mask(image_shape, self.erased_patches, self.grid_size, device)
+        patch_mask, patch_size = self._gen_patch_mask(images, self.erased_patches, self.grid_size)
 
         # Generate the color contents of the erased patches
-        patch_contents = self._gen_patch_contents(images, self.grid_size, patch_size, self.fill_method, device)
+        patch_contents = self._gen_patch_contents(images, self.grid_size, patch_size, self.fill_method)
 
         # Erase the patches from the images and fill them
         images_aug = torch.where(patch_mask[:, None, :, :], patch_contents, images)

@@ -109,20 +109,19 @@ class RandomCutSwap(tf.keras.Layer):
         # to shape [batch_size, height, width, 1]
         if images.shape.rank == 3:
             images = tf.expand_dims(images, axis=-1)
-        image_shape = tf.shape(images)
 
         # Sample the dimensions of the patches
-        patch_dims = sample_patch_dims(image_shape, self.patch_area, self.patch_aspect_ratio)
+        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio)
 
         # Sample locations for the first patches and generate
         # a boolean mask (True inside the patches, False outside)
-        corners_1 = sample_patch_locations(image_shape, patch_dims)
-        mask_1 = gen_patch_mask(image_shape, corners_1)
+        corners_1 = sample_patch_locations(images, patch_dims)
+        mask_1 = gen_patch_mask(images, corners_1)
 
         # Sample locations for the second patches and generate
         # a boolean mask (True inside the patches, False outside)
-        corners_2 = sample_patch_locations(image_shape, patch_dims)
-        mask_2 = gen_patch_mask(image_shape, corners_2)
+        corners_2 = sample_patch_locations(images, patch_dims)
+        mask_2 = gen_patch_mask(images, corners_2)
 
         # Gather the contents of the first patches
         indices_1 = tf.where(mask_1)

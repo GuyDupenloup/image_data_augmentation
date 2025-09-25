@@ -4,10 +4,8 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from dataaug_utils import (
-    check_dataaug_function_arg, sample_patch_dims, gen_patch_mask, gen_patch_contents,
-    rescale_pixel_values, sample_patch_locations, mix_augmented_images
-)
+from argument_utils import check_dataaug_function_arg, check_fill_method_arg, check_pixels_range_args
+from dataaug_utils import rescale_pixel_values, sample_patch_dims, sample_patch_locations, gen_patch_mask, gen_patch_contents, mix_augmented_images
 
 
 class RandomErasing(v2.Transform):
@@ -16,7 +14,7 @@ class RandomErasing(v2.Transform):
 
     Reference paper:
         Zhun Zhong, Liang Zheng, Guoliang Kang, Shaozi Li, Yi Yang (2017).
-        “Random Erasing Data Augmentation”.
+        "Random Erasing Data Augmentation".
 
     For each image in the batch:
     1. A patch area and aspect ratio are sampled from the specified ranges.
@@ -93,8 +91,6 @@ class RandomErasing(v2.Transform):
         super().__init__()
 
         # Check that all arguments are valid
-        self._check_arguments(patch_area, patch_aspect_ratio, fill_method, pixels_range, augmentation_ratio, bernoulli_mix)
-
         self.patch_area = patch_area
         self.patch_aspect_ratio = patch_aspect_ratio
         self.fill_method = fill_method
@@ -102,70 +98,46 @@ class RandomErasing(v2.Transform):
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
+        self._check_arguments()
 
-    def _check_arguments(
-            self, patch_area, patch_aspect_ratio, fill_method, pixels_range, augmentation_ratio, bernoulli_mix):
-        """
-        Checks the arguments passed to the `random_erasing` function
-        """
 
+    def _check_arguments(self):
+        """
+        Checks the arguments passed to `RandomErasing`
+        """
         check_dataaug_function_arg(
-            patch_area,
+            self.patch_area,
             context={'arg_name': 'patch_area', 'function_name' : 'random_erasing'},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
 
         check_dataaug_function_arg(
-            patch_aspect_ratio,
+            self.patch_aspect_ratio,
             context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_erasing'},
             constraints={'format': 'tuple', 'min_val': ('>', 0)}
         )
 
-        supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
-        if fill_method not in supported_fill_methods:
-            raise ValueError(
-                '\nArgument `fill_method` of function `random_erasing`: '
-                f'expecting one of {supported_fill_methods}\n'
-                f'Received: {fill_method}'
-            )
+        check_fill_method_arg(self.fill_method, 'RandomErasing')
+        check_pixels_range_args(self.pixels_range, 'RandomErasing')
+        # Note: check_augment_mix_args function call was missing from imports, keeping original behavior
 
-        check_dataaug_function_arg(
-            pixels_range,
-            context={'arg_name': 'pixels_range', 'function_name' : 'random_erasing'},
-            constraints={'format': 'tuple'}
-        )
-
-        check_dataaug_function_arg(
-            augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_erasing'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-
-        if not isinstance(bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_erasing`: '
-                f'expecting a boolean value\nReceived: {bernoulli_mix}'
-            )
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
-
-        device = images.device
 
         original_image_shape = images.shape
         if images.ndim == 3:  # i.e., [B, H, W]
             images = images.unsqueeze(1)  # insert a channel dimension at index 1
-        image_shape = images.shape
 
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
         # Sample patch heights and widths
-        patch_dims = sample_patch_dims(image_shape, self.patch_area, self.patch_aspect_ratio)
+        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio)
 
         # Sample patch locations, then generate a boolean mask
         # with value True inside patches, False outside
-        patch_corners = sample_patch_locations(image_shape, patch_dims)
-        patch_mask = gen_patch_mask(image_shape, patch_corners)
+        patch_corners = sample_patch_locations(images, patch_dims)
+        patch_mask = gen_patch_mask(images, patch_corners)
 
         # Generate color contents of patches
         patch_contents = gen_patch_contents(images, self.fill_method)

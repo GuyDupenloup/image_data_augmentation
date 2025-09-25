@@ -119,10 +119,9 @@ class RandomCutBlur(tf.keras.Layer):
         # to shape [batch_size, height, width, 1]
         if images.shape.rank == 3:
             images = tf.expand_dims(images, axis=-1)
-        image_shape = tf.shape(images)
 
         # Calculate the size of the low-resolution images
-        image_size = image_shape[1:3]
+        image_size = tf.shape(images)[1:3]
         low_res_size = self.blur_factor * tf.cast(image_size, tf.float32)
         low_res_size = tf.cast(tf.round(low_res_size), tf.int32)
 
@@ -132,9 +131,9 @@ class RandomCutBlur(tf.keras.Layer):
         low_res_images = tf.cast(low_res_images, images.dtype)
 
         # Generate random patches
-        patch_dims = sample_patch_dims(image_shape, self.patch_area, self.patch_aspect_ratio)
-        patch_corners = sample_patch_locations(image_shape, patch_dims)
-        patch_mask = gen_patch_mask(image_shape, patch_corners)
+        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio)
+        patch_corners = sample_patch_locations(images, patch_dims)
+        patch_mask = gen_patch_mask(images, patch_corners)
 
         # Erase the patches from the images and fill them with the low-res images
         images_aug = tf.where(patch_mask[..., None], low_res_images, images)

@@ -108,20 +108,19 @@ class RandomCutPaste(tf.keras.Layer):
         # Reshape images with shape [B, H, W] to [B, H, W, 1]
         if images.shape.rank == 3:
             images = tf.expand_dims(images, axis=-1)
-        image_shape = tf.shape(images)
 
         # Sample patch sizes
-        patch_dims = sample_patch_dims(image_shape, self.patch_area, self.patch_aspect_ratio)
+        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio)
 
         # Sample locations for the source patches and generate
         # a boolean mask (True inside the patches, False outside)
-        source_corners = sample_patch_locations(image_shape, patch_dims)
-        source_mask = gen_patch_mask(image_shape, source_corners)
+        source_corners = sample_patch_locations(images, patch_dims)
+        source_mask = gen_patch_mask(images, source_corners)
 
         # Sample locations for the target patches and generate
         # a boolean mask (True inside the patches, False outside)
-        target_corners = sample_patch_locations(image_shape, patch_dims)
-        target_mask = gen_patch_mask(image_shape, target_corners)
+        target_corners = sample_patch_locations(images, patch_dims)
+        target_mask = gen_patch_mask(images, target_corners)
 
         # Gather the contents of the source patches
         source_indices = tf.where(source_mask)

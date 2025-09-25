@@ -21,6 +21,7 @@ from cutpaste import RandomCutPaste
 from cutswap import RandomCutSwap
 from cut_thumbnail import RandomCutThumbnail
 
+
 def _get_data_loader(image_size, batch_size, seed):
     """
     Loads the Flowers dataset from torchvision and returns a DataLoader.
@@ -151,7 +152,7 @@ def _augment_images(images, labels, function):
     return images_aug
 
 
-def run_test(image_size, images_per_function, grayscale, functions_to_test, shuffling_seed):
+def run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed):
 
     batch_size = max(images_per_function, 64)
     data_loader = _get_data_loader(image_size, batch_size, shuffling_seed)
@@ -160,33 +161,33 @@ def run_test(image_size, images_per_function, grayscale, functions_to_test, shuf
         if grayscale:
             images = images[:, 0, :, :]  # take first channel
 
-        print(f"Running function '{functions_to_test[i]}'")
-        images_aug = _augment_images(images, labels, functions_to_test[i])
+        print(f"Running '{test_list[i]}'")
+        images_aug = _augment_images(images, labels, test_list[i])
 
         # Plot original vs augmented images
         for j in range(images_per_function):
-            _display_images(images[j], images_aug[j], functions_to_test[i])
+            _display_images(images[j], images_aug[j], test_list[i])
 
-        if i == len(functions_to_test) - 1:
+        if i == len(test_list) - 1:
             return
         
 
 if __name__ == '__main__':
 
     image_size = (128, 128)
-    images_per_function = 16
+    images_per_function = 4
     grayscale = False
     shuffling_seed = None   # Set to an int value to always see the same sequence of images
 
-    functions_to_test = [
+    test_list = [
         # 'RandomCutout',
-        # 'RandomErasing',
+        'RandomErasing',
         # 'RandomHideAndSeek',
         # 'RandomGridMask',
         # 'RandomCutblur',
         # 'RandomCutPaste',
         # 'RandomCutSwap',
-        'RandomCutThumbnail',
+        # 'RandomCutThumbnail',
     ]
 
-    run_test(image_size, images_per_function, grayscale, functions_to_test, shuffling_seed)
+    run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)

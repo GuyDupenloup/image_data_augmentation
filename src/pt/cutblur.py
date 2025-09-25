@@ -5,10 +5,8 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from dataaug_utils import (
-    check_dataaug_function_arg, sample_patch_dims, 
-    sample_patch_locations, gen_patch_mask, mix_augmented_images
-)
+from argument_utils import check_dataaug_function_arg, check_augment_mix_args
+from dataaug_utils import sample_patch_dims, sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutblur(v2.Transform):
@@ -84,63 +82,54 @@ class RandomCutblur(v2.Transform):
     ):
         super().__init__()
 
-        # Check that all arguments are valid
-        self._check_arguments(patch_area, patch_aspect_ratio, blur_factor, augmentation_ratio, bernoulli_mix)
-
         self.patch_area = patch_area
         self.patch_aspect_ratio = patch_aspect_ratio
         self.blur_factor = blur_factor
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
+        self._check_arguments()
+		
 
-    def _check_arguments(self, patch_area, patch_aspect_ratio, blur_factor, augmentation_ratio, bernoulli_mix):
-
+    def _check_arguments(self):
         """
-        Checks the arguments passed to the `random_cutblur` function
+        Checks the arguments passed to `RandomCutBlur`
         """
 
         check_dataaug_function_arg(
-            patch_area,
+            self.patch_area,
             context={'arg_name': 'patch_area', 'function_name' : 'random_cutblur'},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
         check_dataaug_function_arg(
-            patch_aspect_ratio,
+            self.patch_aspect_ratio,
             context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutblur'},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
         )
         check_dataaug_function_arg(
-            blur_factor,
+            self.blur_factor,
             context={'arg_name': 'blur_factor', 'function_name' : 'random_cutblur'},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-        check_dataaug_function_arg(
-            augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutblur'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-        if not isinstance(bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_cutblur`: '
-                f'expecting a boolean value\nReceived: {bernoulli_mix}'
-        )
+
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutBlur')
 
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
+
+        device = images.device
 
         # Reshape images with shape [batch_size, height, width]
         # to shape [batch_size, height, width, 1]
         original_image_shape = images.shape
         if images.ndim == 3:  # i.e., [B, H, W]
             images = images.unsqueeze(1)  # insert a channel dimension at index 1
-        image_shape = images.shape
 
         # Original image size as ints for interpolate
-        orig_size = tuple(torch.tensor(image_shape[2:], device=images.device).to(torch.int64).tolist())
+        orig_size = tuple(torch.tensor(images.shape[2:], device=device).to(torch.int64).tolist())
 
         # Low-res size
-        image_size = torch.tensor(image_shape[2:], dtype=torch.float32, device=images.device)
+        image_size = torch.tensor(images.shape[2:], dtype=torch.float32, device=device)
         low_res_size = self.blur_factor * image_size
         low_res_size = torch.round(low_res_size).to(torch.int64)
 
@@ -152,9 +141,9 @@ class RandomCutblur(v2.Transform):
         low_res_images = low_res_images.to(images.dtype)
 
         # Generate random patches
-        patch_dims = sample_patch_dims(image_shape, self.patch_area, self.patch_aspect_ratio)
-        patch_corners = sample_patch_locations(image_shape, patch_dims)
-        patch_mask = gen_patch_mask(image_shape, patch_corners)
+        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio)
+        patch_corners = sample_patch_locations(images, patch_dims)
+        patch_mask = gen_patch_mask(images, patch_corners)
 
         # Erase the patches from the images and fill them with the low-res images
         images_aug = torch.where(patch_mask[:, None, :, :], low_res_images, images)

@@ -4,7 +4,8 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from dataaug_utils import check_dataaug_function_arg, rescale_pixel_values, gen_patch_contents, mix_augmented_images
+from argument_utils import check_dataaug_function_arg, check_fill_method_arg, check_pixels_range_args, check_augment_mix_args
+from dataaug_utils import rescale_pixel_values, gen_patch_contents, mix_augmented_images
 
 
 class RandomGridMask(v2.Transform):
@@ -100,10 +101,6 @@ class RandomGridMask(v2.Transform):
         
         super().__init__()
 
-        # Check that all arguments are valid
-        self._check_arguments(
-            unit_length, masked_ratio, fill_method, pixels_range, augmentation_ratio, bernoulli_mix)
-
         self.unit_length = unit_length
         self.masked_ratio = masked_ratio
         self.fill_method = fill_method
@@ -111,48 +108,32 @@ class RandomGridMask(v2.Transform):
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
+        # Check that all arguments are valid
+        self._check_arguments()
 
-    def _check_arguments(self, unit_length, masked_length_ratio, fill_method, pixels_range, augmentation_ratio, bernoulli_mix):
 
+    def _check_arguments(self):
         """
-        Checks the arguments passed to the `hide_and_seek` function
+        Checks the arguments passed to `RandomGridMask`
         """
-
+		
         check_dataaug_function_arg(
-            unit_length,
+            self.unit_length,
             context={'arg_name': 'unit_length', 'function_name' : 'random_grid_mask'},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
         check_dataaug_function_arg(
-            masked_length_ratio,
-            context={'arg_name': 'masked_length_ratio', 'function_name' : 'random_grid_mask'},
+            self.masked_ratio,
+            context={'arg_name': 'masked_ratio', 'function_name' : 'random_grid_mask'},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
 
-        supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
-        if fill_method not in supported_fill_methods:
-            raise ValueError('\nArgument `fill_method` of function `random_grid_mask` :'
-                            f'expecting one of {supported_fill_methods}'
-            )
-
-        check_dataaug_function_arg(
-            pixels_range,
-            context={'arg_name': 'pixels_range', 'function_name' : 'random_grid_mask'},
-            constraints={'format': 'tuple'}
-        )
-        check_dataaug_function_arg(
-            augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_grid_mask'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-        if not isinstance(bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_grid_mask`: '
-                f'expecting a boolean value\nReceived: {bernoulli_mix}'
-        )
+        check_fill_method_arg(self.fill_method, 'RandomGridMask')
+        check_pixels_range_args(self.pixels_range, 'RandomGridMask')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomGridMask')
 
 
-    def _generate_grid_mask(self, image_shape, unit_length, masked_ratio, device='cpu'):
+    def _generate_grid_mask(self, images, unit_length, masked_ratio):
         """
         Samples unit sizes and grid offsets. Applies the offsets to the grid 
         to shift it in both directions. Generates a boolean mask with 
@@ -161,7 +142,8 @@ class RandomGridMask(v2.Transform):
         the minimum of the height and width.
         """
 
-        batch_size, _, img_height, img_width = image_shape
+        device = images.device
+        batch_size, _, img_height, img_width = images.shape
 
         # Sample unit lengths and calculate masked area lengths
         length_fract = torch.rand(batch_size, device=device) * (unit_length[1] - unit_length[0]) + unit_length[0]
@@ -207,8 +189,6 @@ class RandomGridMask(v2.Transform):
     
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
-
-        device = images.device
 
         original_image_shape = images.shape
         if images.ndim == 3:  # i.e., [B, H, W]

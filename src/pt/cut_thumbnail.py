@@ -4,7 +4,8 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from dataaug_utils import check_dataaug_function_arg, sample_patch_locations, gen_patch_mask, mix_augmented_images
+from argument_utils import check_dataaug_function_arg, check_augment_mix_args
+from dataaug_utils import sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutThumbnail(v2.Transform):
@@ -74,43 +75,35 @@ class RandomCutThumbnail(v2.Transform):
     ):
         super().__init__()
 
-        # Check that all arguments are valid
-        self._check_arguments(thumbnail_area, resize_method, augmentation_ratio, bernoulli_mix)
-
         self.thumbnail_area = thumbnail_area
         self.resize_method = resize_method
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
+        self._check_arguments()
 
-    def _check_arguments(self, thumbnail_area, resize_method, augmentation_ratio, bernoulli_mix):
+
+    def _check_arguments(self):
+        """
+        Checks the arguments passed to `RandomCutThumbnail`
+        """
 
         check_dataaug_function_arg(
-            thumbnail_area,
+            self.thumbnail_area,
             context={'arg_name': 'thumbnail_area', 'function_name' : 'random_cut_thumbnail'},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
 
         supported_resize_methods = (
             'bilinear', 'lanczos3', 'lanczos5', 'bicubic', 'gaussian', 'nearest', 'area', 'mitchellcubic')
-        if resize_method not in supported_resize_methods:
+        if self.resize_method not in supported_resize_methods:
             raise ValueError(
                 '\nArgument `resize_method` of function `random_cut_thumbnail`: '
                 f'expecting one of {supported_resize_methods}\n'
-                f'Received: {resize_method}'
+                f'Received: {self.resize_method}'
             )
-
-        check_dataaug_function_arg(
-            augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cut_thumbnail'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-
-        if not isinstance(bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_cut_thumbnail`: '
-                f'expecting a boolean value\nReceived: {bernoulli_mix}'
-            )
+        
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutThumbnail')
 
 
     def _calculate_thumbnail_size(self, image_size, thumbnail_area):
@@ -149,6 +142,8 @@ class RandomCutThumbnail(v2.Transform):
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
+        device = images.device
+
         # ---- Preserve original shape
         original_image_shape = images.shape
 
@@ -157,21 +152,21 @@ class RandomCutThumbnail(v2.Transform):
             images = images.unsqueeze(1)
 
         image_shape = images.shape
-        batch_size, channels = image_shape[:2]
+        batch_size, channels, img_height, img_width = image_shape[:2]
 
         # ---- Calculate thumbnail size and resize
-        thumb_h, thumb_w = self._calculate_thumbnail_size(image_shape[2:], self.thumbnail_area)
+        thumb_h, thumb_w = self._calculate_thumbnail_size(images.shape[2:], self.thumbnail_area)
         thumbnails = F.interpolate(images, size=(thumb_h, thumb_w),
                                 mode=self.resize_method, align_corners=False)
         thumbnails = thumbnails.to(images.dtype)
 
         # ---- Create patch mask
         batched_thumbnail_size = (
-            torch.full((batch_size,), thumb_h, device=images.device, dtype=torch.int64),
-            torch.full((batch_size,), thumb_w, device=images.device, dtype=torch.int64)
+            torch.full((batch_size,), thumb_h, device=device, dtype=torch.int64),
+            torch.full((batch_size,), thumb_w, device=device, dtype=torch.int64)
         )
-        patch_corners = sample_patch_locations(image_shape, batched_thumbnail_size)
-        patch_mask = gen_patch_mask(image_shape, patch_corners)
+        patch_corners = sample_patch_locations(images, batched_thumbnail_size)
+        patch_mask = gen_patch_mask(images, patch_corners)
         patch_mask = patch_mask.unsqueeze(1)  # [B,1,H,W]
 
         # Get patch indices
@@ -205,7 +200,7 @@ class RandomCutThumbnail(v2.Transform):
 
         # ---- Gather pixel values from thumbnails across channels
         num_pixels = patch_indices.shape[0]
-        channel_idx = torch.arange(channels, device=images.device).view(1, channels).expand(num_pixels, channels)
+        channel_idx = torch.arange(channels, device=device).view(1, channels).expand(num_pixels, channels)
         thumbnail_contents = thumbnails[batch_indices.view(-1, 1), channel_idx, thumb_y.view(-1, 1), thumb_x.view(-1, 1)]
         thumbnail_contents = thumbnail_contents.view(num_pixels, channels)
 

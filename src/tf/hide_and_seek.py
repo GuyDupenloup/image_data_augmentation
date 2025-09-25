@@ -125,12 +125,13 @@ class RandomHideAndSeek(tf.keras.Layer):
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, RandomHideAndSeek)
 
 
-    def _gen_patch_mask(self, image_shape):
+    def _gen_patch_mask(self, images):
         """
         Generates a boolean mask that will be used to erase the patches from 
         the images. Value is True inside areas to erase, False outside.
         """
 
+        image_shape = tf.shape(images)
         batch_size, img_height, img_width = tf.unstack(image_shape[:3])
         grid_h = self.grid_size[0]
         grid_w = self.grid_size[1]
@@ -217,14 +218,13 @@ class RandomHideAndSeek(tf.keras.Layer):
         # Reshape images with shape [B, H, W] to [B, H, W, 1]
         if images.shape.rank == 3:
             images = tf.expand_dims(images, axis=-1)
-        image_shape = tf.shape(images)
 
         # Save images data type and rescale pixel values to (0, 255)
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=tf.int32)
 
         # Generate a boolean mask with value True inside the areas to erase, False outside
-        patch_mask, patch_size = self._gen_patch_mask(image_shape)
+        patch_mask, patch_size = self._gen_patch_mask(images)
 
         # Generate the color contents of the erased patches
         patch_contents = self._gen_patch_contents(images, patch_size)

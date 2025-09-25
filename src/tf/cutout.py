@@ -2,10 +2,9 @@
 # Licensed under the MIT License. See LICENSE file for details.
 
 import tensorflow as tf
-from dataaug_utils import (
-    check_dataaug_function_arg, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args,
-    rescale_pixel_values, sample_patch_locations, gen_patch_mask, gen_patch_contents, mix_augmented_images
-)
+
+from argument_utils import check_dataaug_function_arg, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
+from dataaug_utils import rescale_pixel_values, sample_patch_locations, gen_patch_mask, gen_patch_contents, mix_augmented_images
 
 
 class RandomCutout(tf.keras.Layer):
@@ -92,7 +91,6 @@ class RandomCutout(tf.keras.Layer):
 
 
     def _check_arguments(self):
-
         """
         Checks the arguments passed to the `random_cutout` function
         """
@@ -133,8 +131,8 @@ class RandomCutout(tf.keras.Layer):
         # with value True inside patches, False outside
         batch_size = image_shape[0]
         batched_patch_size = (tf.repeat(patch_size, batch_size), tf.repeat(patch_size, batch_size))
-        patch_corners = sample_patch_locations(image_shape, batched_patch_size)
-        patch_mask = gen_patch_mask(image_shape, patch_corners)
+        patch_corners = sample_patch_locations(images, batched_patch_size)
+        patch_mask = gen_patch_mask(images, patch_corners)
 
         # Generate color contents of patches
         patch_contents = gen_patch_contents(images, self.fill_method)

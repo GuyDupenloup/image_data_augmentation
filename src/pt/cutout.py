@@ -5,10 +5,8 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from dataaug_utils import (
-    check_dataaug_function_arg, gen_patch_mask, gen_patch_contents,
-    rescale_pixel_values, sample_patch_locations, mix_augmented_images
-)
+from argument_utils import check_dataaug_function_arg, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
+from dataaug_utils import rescale_pixel_values, sample_patch_locations, gen_patch_mask, gen_patch_contents, mix_augmented_images
 
 
 class RandomCutout(v2.Transform):
@@ -85,75 +83,50 @@ class RandomCutout(v2.Transform):
     ):
         super().__init__()
 
-        # Check that all arguments are valid
-        self._check_arguments(patch_area, fill_method, pixels_range, augmentation_ratio, bernoulli_mix)
-
         self.patch_area = patch_area
         self.fill_method = fill_method
         self.pixels_range = pixels_range
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
+        # Check that all the arguments are valid
+        self._check_arguments()
 
-    def _check_arguments(self, patch_area, fill_method, pixels_range, augmentation_ratio, bernoulli_mix):
 
+    def _check_arguments(self):
+        """
+        Checks the arguments passed to `RandomCutout`
+        """
         check_dataaug_function_arg(
-            patch_area,
+            self.patch_area,
             context={'arg_name': 'patch_area', 'function_name' : 'random_cutout'},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-
-        supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
-        if fill_method not in supported_fill_methods:
-            raise ValueError(
-                '\nArgument `fill_method` of function `random_cutout`: '
-                f'expecting one of {supported_fill_methods}\n'
-                f'Received: {fill_method}'
-            )
-        
-        check_dataaug_function_arg(
-            pixels_range,
-            context={'arg_name': 'pixels_range', 'function_name' : 'random_cutout'},
-            constraints={'format': 'tuple'}
-        )
-
-        check_dataaug_function_arg(
-            augmentation_ratio,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutout'},
-            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-        )
-
-        if not isinstance(bernoulli_mix, bool):
-            raise ValueError(
-                'Argument `bernoulli_mix` of function `random_cutout`: '
-                f'expecting a boolean value\nReceived: {bernoulli_mix}'
-            )
-
-
-    def _calculate_patch_size(self, H, W):
-        area = self.patch_area * H * W
-        patch_size = int(round(math.sqrt(area)))
-        return min(patch_size, H), min(patch_size, W)
+        check_fill_method_arg(self.fill_method, 'RandomCutout')
+        check_pixels_range_args(self.pixels_range, 'RandomCutout')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutout')
 
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
-        device = images.device
-
         original_image_shape = images.shape
         if images.ndim == 3:  # i.e., [B, H, W]
             images = images.unsqueeze(1)  # insert a channel dimension at index 1
+
         batch_size, _, img_height, img_width = images.shape  # Now consistently [B, C, H, W]
 
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
-        patch_size = self._calculate_patch_size(img_height, img_width)
-
+        # Calculate patch size
+        area = self.patch_area * img_height * img_width
+        patch_size = int(round(math.sqrt(area)))
+        patch_size = max(0, min(patch_size, img_height, img_width))
+    
         # Create batched patch sizes
         batched_patch_size = (
-            torch.full((batch_size,), patch_size[0], dtype=torch.int32, device=device),
-            torch.full((batch_size,), patch_size[1], dtype=torch.int32, device=device)
+            torch.full((batch_size,), patch_size, dtype=torch.int32, device=images.device),
+            torch.full((batch_size,), patch_size, dtype=torch.int32, device=images.device)
         )
 
         patch_corners = sample_patch_locations(images.shape, batched_patch_size)
