@@ -8,45 +8,8 @@ from dataaug_utils import (
 )
 
 
-def _check_random_cutout_args(patch_area, fill_method, pixels_range, augmentation_ratio, bernoulli_mix):
 
-    """
-    Checks the arguments passed to the `random_cutout` function
-    """
-
-    check_dataaug_function_arg(
-        patch_area,
-        context={'arg_name': 'patch_area', 'function_name' : 'random_cutout'},
-        constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
-    )
-
-    supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
-    if fill_method not in supported_fill_methods:
-        raise ValueError(
-            '\nArgument `fill_method` of function `random_cutout`: '
-            f'expecting one of {supported_fill_methods}\n'
-            f'Received: {fill_method}'
-        )
-
-    check_dataaug_function_arg(
-        pixels_range,
-        context={'arg_name': 'pixels_range', 'function_name' : 'random_cutout'},
-        constraints={'format': 'tuple'}
-    )
-
-    check_dataaug_function_arg(
-        augmentation_ratio,
-        context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutout'},
-        constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-    )
-
-    if not isinstance(bernoulli_mix, bool):
-        raise ValueError(
-            'Argument `bernoulli_mix` of function `random_cutout`: '
-            f'expecting a boolean value\nReceived: {bernoulli_mix}'
-        )
-
-
+'''
 def _calculate_patch_size(image_size, patch_area):
     """
     Calculates the size the patches.
@@ -181,7 +144,7 @@ def random_cutout(
     output_images = rescale_pixel_values(output_images, (0, 255), pixels_range, dtype=pixels_dtype)
 
     return output_images
-
+'''
 
 class RandomCutout(tf.keras.Layer):
     """
@@ -209,15 +172,109 @@ class RandomCutout(tf.keras.Layer):
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-    def call(self, inputs, training=None):
-        return random_cutout(
-            inputs,
-            patch_area=self.patch_area,
-            fill_method=self.fill_method,
-            pixels_range=self.pixels_range,
-            augmentation_ratio=self.augmentation_ratio,
-            bernoulli_mix=self.bernoulli_mix
+        self._check_arguments()
+
+
+    def _check_arguments(self):
+
+        """
+        Checks the arguments passed to the `random_cutout` function
+        """
+
+        check_dataaug_function_arg(
+            self.patch_area,
+            context={'arg_name': 'patch_area', 'function_name' : 'random_cutout'},
+            constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
+
+        supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
+        if self.fill_method not in supported_fill_methods:
+            raise ValueError(
+                '\nArgument `fill_method` of function `random_cutout`: '
+                f'expecting one of {supported_fill_methods}\n'
+                f'Received: {self.fill_method}'
+            )
+
+        check_dataaug_function_arg(
+            self.pixels_range,
+            context={'arg_name': 'pixels_range', 'function_name' : 'random_cutout'},
+            constraints={'format': 'tuple'}
+        )
+
+        check_dataaug_function_arg(
+            self.augmentation_ratio,
+            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutout'},
+            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
+        )
+
+        if not isinstance(self.bernoulli_mix, bool):
+            raise ValueError(
+                'Argument `bernoulli_mix` of function `random_cutout`: '
+                f'expecting a boolean value\nReceived: {self.bernoulli_mix}'
+            )
+
+
+    def _calculate_patch_size(self, image_size, patch_area):
+        """
+        Calculates the size the patches.
+        Patches are square.
+        Their area is specified as a fraction of the image area.
+        """
+
+        img_height = image_size[0]
+        img_width = image_size[1]
+
+        area = patch_area * tf.cast(img_height, tf.float32) * tf.cast(img_width, tf.float32)
+
+        patch_h = tf.sqrt(area)
+        patch_h = tf.cast(tf.round(patch_h), tf.int32)
+        patch_w = patch_h
+
+        # Clip patch size to image size (for robustness)
+        patch_h = tf.clip_by_value(patch_h, 0, img_height)
+        patch_w = tf.clip_by_value(patch_w, 0, img_width)
+
+        return patch_h, patch_w
+
+
+    def call(self, images, training=None):
+
+        original_image_shape = tf.shape(images)
+
+        # Reshape images with shape [B, H, W] to shape [B, H, W, 1]
+        if images.shape.rank == 3:
+            images = tf.expand_dims(images, axis=-1)
+        image_shape = tf.shape(images)
+
+        # Save images data type and rescale pixel values to (0, 255)
+        pixels_dtype = images.dtype
+        images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=tf.int32)
+
+        # Calculate the size of the patches
+        patch_size = self._calculate_patch_size(image_shape[1:3], self.patch_area)
+
+        # Sample patch locations and generate a boolean mask 
+        # with value True inside patches, False outside
+        batch_size = image_shape[0]
+        batched_patch_size = (tf.repeat(patch_size[0], batch_size), tf.repeat(patch_size[1], batch_size))
+        patch_corners = sample_patch_locations(image_shape, batched_patch_size)
+        patch_mask = gen_patch_mask(image_shape, patch_corners)
+
+        # Generate color contents of patches
+        patch_contents = gen_patch_contents(images, self.fill_method)
+
+        # Erase the patches from the images and fill them
+        images_aug = tf.where(patch_mask[:, :, :, None], patch_contents, images)
+
+        # Mix the original and augmented images
+        output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
+
+        # Restore shape, data type and pixels range of input images
+        output_images = tf.reshape(output_images, original_image_shape)
+        output_images = rescale_pixel_values(output_images, (0, 255), self.pixels_range, dtype=pixels_dtype)
+
+        return output_images
+
 
     def get_config(self):
         base_config = super().get_config()
@@ -230,3 +287,4 @@ class RandomCutout(tf.keras.Layer):
         }
         base_config.update(config)
         return base_config
+    

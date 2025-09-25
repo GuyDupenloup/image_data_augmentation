@@ -7,44 +7,8 @@ from dataaug_utils import (
     gen_patch_mask, mix_augmented_images
 )
 
-def _check_random_cutswap_args(
-    patch_area, patch_aspect_ratio, augmentation_ratio, bernoulli_mix):
 
-    """
-    Checks the arguments passed to the `random_cutswap` function
-    """
-
-    check_dataaug_function_arg(
-        patch_area,
-        context={'arg_name': 'patch_area', 'function_name' : 'random_cutswap'},
-        constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
-    )
-    check_dataaug_function_arg(
-        patch_aspect_ratio,
-        context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutswap'},
-        constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
-    )
-    check_dataaug_function_arg(
-        augmentation_ratio,
-        context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutswap'},
-        constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-    )
-    if not isinstance(bernoulli_mix, bool):
-        raise ValueError(
-            'Argument `bernoulli_mix` of function `random_cutswap`: '
-            f'expecting a boolean value\nReceived: {bernoulli_mix}'
-        )
-
-
-@tf.function
-def random_cutswap(
-        images: tf.Tensor,
-        patch_area: tuple[float, float] = (0.05, 0.3),
-        patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
-        augmentation_ratio: float = 1.0,
-        bernoulli_mix: bool = False
-    ) -> tf.Tensor:
-
+class RandomCutSwap(tf.keras.Layer):
     """
     Applies the "CutSwap" data augmentation technique to a batch of images.
     
@@ -99,63 +63,6 @@ def random_cutswap(
         A tensor of the same shape and dtype as the input images, containing a mix
         of original and CutSwap-augmented images.
     """
-
-    # Check the arguments passed to the function
-    _check_random_cutswap_args(
-        patch_area, patch_aspect_ratio, augmentation_ratio, bernoulli_mix)
-
-    original_image_shape = tf.shape(images)
-
-    # Reshape grayscale images with shape [batch_size, height, width]
-    # to shape [batch_size, height, width, 1]
-    if images.shape.rank == 3:
-        images = tf.expand_dims(images, axis=-1)
-    image_shape = tf.shape(images)
-
-    # Sample the dimensions of the patches
-    patch_dims = sample_patch_dims(image_shape, patch_area, patch_aspect_ratio)
-
-    # Sample locations for the first patches and generate
-    # a boolean mask (True inside the patches, False outside)
-    corners_1 = sample_patch_locations(image_shape, patch_dims)
-    mask_1 = gen_patch_mask(image_shape, corners_1)
-
-    # Sample locations for the second patches and generate
-    # a boolean mask (True inside the patches, False outside)
-    corners_2 = sample_patch_locations(image_shape, patch_dims)
-    mask_2 = gen_patch_mask(image_shape, corners_2)
-
-    # Gather the contents of the first patches
-    indices_1 = tf.where(mask_1)
-    contents_1 = tf.gather_nd(images, indices_1)
-
-    # Gather the contents of the second patches
-    indices_2 = tf.where(mask_2)
-    contents_2 = tf.gather_nd(images, indices_2)
-
-    # Swap the contents of the first and second patches
-    images_aug = tf.tensor_scatter_nd_update(images, indices_1, contents_2)
-    images_aug = tf.tensor_scatter_nd_update(images_aug, indices_2, contents_1)
-
-    # Mix the original and augmented images
-    output_images, _ = mix_augmented_images(images, images_aug, augmentation_ratio, bernoulli_mix)
-
-    # Restore input images shape
-    output_images = tf.reshape(output_images, original_image_shape)
-
-    return output_images
-
-
-class RandomCutSwap(tf.keras.Layer):
-    """
-    This keras layer implements the "CutSwap" data augmentation 
-    technique. It is intended to be used as a preprocessing layer,
-    similar to Tensorflow's built-in layers such as RandomContrast,
-    RandomFlip, etc.
-    
-    Refer to the docstring of the random_cutswap() function for 
-    an explanation of the parameters of the layer.
-    """
     
     def __init__(self,
         patch_area: tuple[float, float] = (0.05, 0.3),
@@ -171,14 +78,79 @@ class RandomCutSwap(tf.keras.Layer):
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-    def call(self, inputs, training=None):
-        return random_cutswap(
-            inputs,
-            patch_area=self.patch_area,
-            patch_aspect_ratio=self.patch_aspect_ratio,
-            augmentation_ratio=self.augmentation_ratio,
-            bernoulli_mix=self.bernoulli_mix
+        self._check_arguments()
+
+
+    def _check_arguments(self):
+        """
+        Checks the arguments passed to the `random_cutswap` function
+        """
+
+        check_dataaug_function_arg(
+            self.patch_area,
+            context={'arg_name': 'patch_area', 'function_name' : 'random_cutswap'},
+            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
+        check_dataaug_function_arg(
+            self.patch_aspect_ratio,
+            context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutswap'},
+            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
+        )
+        check_dataaug_function_arg(
+            self.augmentation_ratio,
+            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutswap'},
+            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
+        )
+        if not isinstance(self.bernoulli_mix, bool):
+            raise ValueError(
+                'Argument `bernoulli_mix` of function `random_cutswap`: '
+                f'expecting a boolean value\nReceived: {self.bernoulli_mix}'
+            )
+
+
+    def call(self, images, training=None):
+
+        original_image_shape = tf.shape(images)
+
+        # Reshape grayscale images with shape [batch_size, height, width]
+        # to shape [batch_size, height, width, 1]
+        if images.shape.rank == 3:
+            images = tf.expand_dims(images, axis=-1)
+        image_shape = tf.shape(images)
+
+        # Sample the dimensions of the patches
+        patch_dims = sample_patch_dims(image_shape, self.patch_area, self.patch_aspect_ratio)
+
+        # Sample locations for the first patches and generate
+        # a boolean mask (True inside the patches, False outside)
+        corners_1 = sample_patch_locations(image_shape, patch_dims)
+        mask_1 = gen_patch_mask(image_shape, corners_1)
+
+        # Sample locations for the second patches and generate
+        # a boolean mask (True inside the patches, False outside)
+        corners_2 = sample_patch_locations(image_shape, patch_dims)
+        mask_2 = gen_patch_mask(image_shape, corners_2)
+
+        # Gather the contents of the first patches
+        indices_1 = tf.where(mask_1)
+        contents_1 = tf.gather_nd(images, indices_1)
+
+        # Gather the contents of the second patches
+        indices_2 = tf.where(mask_2)
+        contents_2 = tf.gather_nd(images, indices_2)
+
+        # Swap the contents of the first and second patches
+        images_aug = tf.tensor_scatter_nd_update(images, indices_1, contents_2)
+        images_aug = tf.tensor_scatter_nd_update(images_aug, indices_2, contents_1)
+
+        # Mix the original and augmented images
+        output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
+
+        # Restore input images shape
+        output_images = tf.reshape(output_images, original_image_shape)
+
+        return output_images
+
 
     def get_config(self):
         base_config = super().get_config()

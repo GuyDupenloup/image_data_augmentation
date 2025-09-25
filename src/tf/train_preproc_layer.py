@@ -32,50 +32,7 @@ def _get_data_loaders(image_size, batch_size):
     return train_ds, val_ds
 
 
-def _create_augmented_model(model, rescaling, pixels_range):
-    """
-    Adds preprocessing layers to the model to train
-    """
-    model_layers = []
-    model_layers.append(tf.keras.Input(shape=model.input.shape[1:]))
-
-    # Add a rescaling layer
-    model.layers.append(Rescaling(rescaling[0], rescaling[1]))
-    
-    # Add the data augmentation layers
-    model_layers.append(RandomContrast(0.4))
-    model_layers.append(RandomBrightness(0.5))
-    model_layers.append(RandomFlip(mode='horizontal'))
-    model_layers.append(
-        RandomCutout(
-            patch_area=0.3,
-            fill_method='black',
-            pixels_range=pixels_range,
-            augmentation_ratio=0.1,   # Use 10% of augmented images
-            bernoulli_mix=False
-        )
-    )
-    model_layers.append(RandomRotation(factor=0.05))
-
-    # Add the model to train and create the augmented model
-    model_layers.append(model)
-    augmented_model = tf.keras.Sequential(model_layers, name='augmented_model')
-
-    return augmented_model
-
-
-def train():
-
-    image_shape = (128, 128, 3)
-    rescaling = (1/255., 0)
-    pixels_range = (0, 1)
-    num_classes = 5
-    batch_size = 32
-    epochs = 5
-    
-    # Get dataloaders for the Flowers dataset
-    train_ds, val_ds = _get_data_loaders(image_shape[:2], batch_size)
-
+def _get_base_model(image_shape, num_classes):
     # Get a ResNet50 model
     resnet_model = tf.keras.applications.ResNet50(
         weights='imagenet',
@@ -93,6 +50,55 @@ def train():
     x = tf.keras.layers.Dropout(0.2)(x)
     outputs = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
     base_model = tf.keras.Model(inputs, outputs)
+ 
+    return base_model
+
+
+def _create_augmented_model(base_model, rescaling, pixels_range):
+    """
+    Adds preprocessing layers to the model to train
+    """
+    model_layers = []
+    model_layers.append(tf.keras.Input(shape=base_model.input.shape[1:]))
+
+    # Add a rescaling layer
+    model_layers.append(Rescaling(rescaling[0], rescaling[1]))
+    
+    # Add the data augmentation layers
+    model_layers.append(RandomContrast(0.4))
+    model_layers.append(RandomBrightness(0.5))
+    model_layers.append(RandomFlip(mode='horizontal'))
+    model_layers.append(
+        RandomCutout(
+            patch_area=0.3,
+            fill_method='black',
+            pixels_range=pixels_range,
+            augmentation_ratio=0.1,   # Augment 10% of images
+            bernoulli_mix=False
+        )
+    )
+    model_layers.append(RandomRotation(factor=0.05))
+
+    # Add the model to train and create the augmented model
+    model_layers.append(base_model)
+    augmented_model = tf.keras.Sequential(model_layers, name='augmented_model')
+
+    return augmented_model
+
+
+def train():
+
+    image_shape = (128, 128, 3)
+    rescaling = (1/255., 0)
+    pixels_range = (0, 1)
+    num_classes = 5
+    batch_size = 32
+    epochs = 5
+    
+    # Get dataloaders for the Flowers dataset
+    train_ds, val_ds = _get_data_loaders(image_shape[:2], batch_size)
+
+    base_model = _get_base_model(image_shape, num_classes)
  
     # Add the preprocessing layers
     augmented_model = _create_augmented_model(base_model, rescaling, pixels_range)

@@ -7,50 +7,8 @@ from dataaug_utils import (
     gen_patch_mask, mix_augmented_images
 )
 
-def _check_random_cutblur_args(
-    patch_area, patch_aspect_ratio, blur_factor, augmentation_ratio, bernoulli_mix):
 
-    """
-    Checks the arguments passed to the `random_cutblur` function
-    """
-
-    check_dataaug_function_arg(
-        patch_area,
-        context={'arg_name': 'patch_area', 'function_name' : 'random_cutblur'},
-        constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
-    )
-    check_dataaug_function_arg(
-        patch_aspect_ratio,
-        context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutblur'},
-        constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
-    )
-    check_dataaug_function_arg(
-        blur_factor,
-        context={'arg_name': 'blur_factor', 'function_name' : 'random_cutblur'},
-        constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
-    )
-    check_dataaug_function_arg(
-        augmentation_ratio,
-        context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutblur'},
-        constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-    )
-    if not isinstance(bernoulli_mix, bool):
-        raise ValueError(
-            'Argument `bernoulli_mix` of function `random_cutblur`: '
-            f'expecting a boolean value\nReceived: {bernoulli_mix}'
-        )
-
-
-@tf.function
-def random_cutblur(
-        images: tf.Tensor,
-        patch_area: tuple[float, float] = (0.05, 0.3),
-        patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
-        blur_factor: float = 0.1,
-        augmentation_ratio: float = 1.0,
-        bernoulli_mix: bool = False
-    ) -> tf.Tensor:
-
+class RandomCutBlur(tf.keras.Layer):
     """
     Applies the "CutBlur" data augmentation technique to a batch of images.
 
@@ -112,55 +70,6 @@ def random_cutblur(
         of original and CutBlur-augmented images. Pixel values are in the same
         range as the input images.
     """
-
-    # Check the arguments passed to the function
-    _check_random_cutblur_args(
-        patch_area, patch_aspect_ratio, blur_factor, augmentation_ratio, bernoulli_mix)
-
-    original_image_shape = tf.shape(images)
-
-    # Reshape images with shape [batch_size, height, width]
-    # to shape [batch_size, height, width, 1]
-    if images.shape.rank == 3:
-        images = tf.expand_dims(images, axis=-1)
-    image_shape = tf.shape(images)
-
-    # Calculate the size of the low-resolution images
-    image_size = image_shape[1:3]
-    low_res_size = blur_factor * tf.cast(image_size, tf.float32)
-    low_res_size = tf.cast(tf.round(low_res_size), tf.int32)
-
-    # Downsize to the low resolution size, then upsize to the original size
-    smaller_images = tf.image.resize(images, low_res_size)
-    low_res_images = tf.image.resize(smaller_images, image_size)
-    low_res_images = tf.cast(low_res_images, images.dtype)
-
-    # Generate random patches
-    patch_dims = sample_patch_dims(image_shape, patch_area, patch_aspect_ratio)
-    patch_corners = sample_patch_locations(image_shape, patch_dims)
-    patch_mask = gen_patch_mask(image_shape, patch_corners)
-
-    # Erase the patches from the images and fill them with the low-res images
-    images_aug = tf.where(patch_mask[..., None], low_res_images, images)
-
-    # Mix the original and augmented images
-    output_images, _ = mix_augmented_images(images, images_aug, augmentation_ratio, bernoulli_mix)
-
-    # Restore input images shape
-    output_images = tf.reshape(output_images, original_image_shape)
-
-    return output_images
-
-
-class RandomCutBlur(tf.keras.Layer):
-    """
-    This keras layer implements the "CutBlur" data augmentation technique.
-    It is intended to be used as a preprocessing layer, similar to Tensorflow's 
-    built-in layers such as RandomContrast, RandomFlip, etc.
-    
-    Refer to the docstring of the random_cutblur() function for an explanation
-    of the parameters of the layer.
-    """
     
     def __init__(self,
         patch_area: tuple[float, float] = (0.05, 0.3),
@@ -178,15 +87,74 @@ class RandomCutBlur(tf.keras.Layer):
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-    def call(self, inputs, training=None):
-        return random_cutblur(
-            inputs,
-            patch_area=self.patch_area,
-            patch_aspect_ratio=self.patch_aspect_ratio,
-            blur_factor=self.blur_factor,
-            augmentation_ratio=self.augmentation_ratio,
-            bernoulli_mix=self.bernoulli_mix
+        self._check_arguments()
+
+
+    def _check_arguments(self):
+
+        check_dataaug_function_arg(
+            self.patch_area,
+            context={'arg_name': 'patch_area', 'function_name' : 'random_cutblur'},
+            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
+        check_dataaug_function_arg(
+            self.patch_aspect_ratio,
+            context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutblur'},
+            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
+        )
+        check_dataaug_function_arg(
+            self.blur_factor,
+            context={'arg_name': 'blur_factor', 'function_name' : 'random_cutblur'},
+            constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
+        )
+        check_dataaug_function_arg(
+            self.augmentation_ratio,
+            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_cutblur'},
+            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
+        )
+        if not isinstance(self.bernoulli_mix, bool):
+            raise ValueError(
+                'Argument `bernoulli_mix` of function `random_cutblur`: '
+                f'expecting a boolean value\nReceived: {self.bernoulli_mix}'
+            )
+
+
+    def call(self, images, training=None):
+
+        original_image_shape = tf.shape(images)
+
+        # Reshape images with shape [batch_size, height, width]
+        # to shape [batch_size, height, width, 1]
+        if images.shape.rank == 3:
+            images = tf.expand_dims(images, axis=-1)
+        image_shape = tf.shape(images)
+
+        # Calculate the size of the low-resolution images
+        image_size = image_shape[1:3]
+        low_res_size = self.blur_factor * tf.cast(image_size, tf.float32)
+        low_res_size = tf.cast(tf.round(low_res_size), tf.int32)
+
+        # Downsize to the low resolution size, then upsize to the original size
+        smaller_images = tf.image.resize(images, low_res_size)
+        low_res_images = tf.image.resize(smaller_images, image_size)
+        low_res_images = tf.cast(low_res_images, images.dtype)
+
+        # Generate random patches
+        patch_dims = sample_patch_dims(image_shape, self.patch_area, self.patch_aspect_ratio)
+        patch_corners = sample_patch_locations(image_shape, patch_dims)
+        patch_mask = gen_patch_mask(image_shape, patch_corners)
+
+        # Erase the patches from the images and fill them with the low-res images
+        images_aug = tf.where(patch_mask[..., None], low_res_images, images)
+
+        # Mix the original and augmented images
+        output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
+
+        # Restore input images shape
+        output_images = tf.reshape(output_images, original_image_shape)
+
+        return output_images
+
 
     def get_config(self):
         base_config = super().get_config()

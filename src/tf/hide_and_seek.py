@@ -5,130 +5,6 @@ import tensorflow as tf
 from dataaug_utils import check_dataaug_function_arg, rescale_pixel_values, mix_augmented_images
 
 
-def _check_random_hide_and_seek_args(
-        erased_patches, grid_size, fill_method,
-        pixels_range, augmentation_ratio, bernoulli_mix):
-
-    """
-    Checks the arguments passed to the `random_hide_and_seek` function
-    """
-
-    check_dataaug_function_arg(
-        grid_size,
-        context={'arg_name': 'grid_size', 'function_name' : 'random_hide_and_seek'},
-        constraints={'format': 'tuple', 'tuple_ordering': 'None', 'data_type': 'int', 'min_val': ('>', 0)}
-    )
-
-    check_dataaug_function_arg(
-        erased_patches,
-        context={'arg_name': 'erased_patches', 'function_name' : 'random_hide_and_seek'},
-        constraints={'format': 'tuple', 'data_type': 'int', 'min_val': ('>=', 0)}
-    )
-
-    supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
-    if fill_method not in supported_fill_methods:
-        raise ValueError(
-            '\nArgument `fill_method` of function `random_hide_and_seek`: '
-            f'expecting one of {supported_fill_methods}\n'
-            f'Received: {fill_method}'
-        )
-
-    check_dataaug_function_arg(
-        pixels_range,
-        context={'arg_name': 'pixels_range', 'function_name' : 'random_hide_and_seek'},
-        constraints={'format': 'tuple'}
-    )
-
-    check_dataaug_function_arg(
-        augmentation_ratio,
-        context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_hide_and_seek'},
-        constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
-    )
-
-    if not isinstance(bernoulli_mix, bool):
-        raise ValueError(
-            'Argument `bernoulli_mix` of function `random_hide_and_seek`: '
-            f'expecting a boolean value\nReceived: {bernoulli_mix}'
-        )
-
-
-def _gen_hs_patch_mask(image_shape, erased_patches, grid_size):
-    """
-    Generates a boolean mask that will be used to erase the patches from 
-    the images. Value is True inside areas to erase, False outside.
-    """
-
-    batch_size, img_height, img_width = tf.unstack(image_shape)
-
-    # Sample the coordinates (x, y) of the grid points where
-    # the corresponding patches in the image will be erased
-    num_patches = tf.random.uniform([batch_size], minval=erased_patches[0], maxval=erased_patches[1] + 1, dtype=tf.int32)
-
-    # Don't erase more patches than total available (for robustness)
-    num_patches = tf.minimum(num_patches, grid_size[0] * grid_size[1])
-
-    indices = tf.argsort(tf.random.uniform([batch_size, grid_size[0] * grid_size[1]]))
-
-    grid_mask = tf.where(indices < num_patches[:, None], True, False)
-    grid_mask = tf.reshape(grid_mask, [batch_size, grid_size[0], grid_size[1]])
-
-    # Calculate width and height of patches
-    patch_h = tf.cast(img_height / grid_size[0], tf.int32)
-    patch_w = tf.cast(img_width / grid_size[1], tf.int32)
-    patch_size = tf.stack([patch_h, patch_w], axis=-1)
-
-    # Fill patches with the mask values of the corresponding grid points
-    patch_mask = tf.repeat(grid_mask, repeats=patch_h + 1, axis=1)
-    patch_mask = tf.repeat(patch_mask, repeats=patch_w + 1, axis=2)
-
-    # Truncate mask to image size
-    patch_mask = patch_mask[:, :img_height, :img_width]
-
-    return patch_mask, patch_size
-
-
-def _gen_hs_patch_contents(images, grid_size, patch_size, fill_method):
-
-    """
-    This function generates the color contents of the erased patches,
-    accordingly to the specified fill method: random color, uniform color,
-    or noise.
-    It outputs a tensor with shape [batch_size, img_width, img_height, 3].
-    """
-
-    image_shape = tf.shape(images)
-    batch_size, img_height, img_width, img_channels = tf.unstack(image_shape)
-
-    if fill_method == 'black':
-        contents = tf.zeros(image_shape, dtype=tf.int32)
-
-    elif fill_method == 'gray':
-        contents = tf.fill(image_shape, 128)
-
-    elif fill_method == 'white':
-        contents = tf.fill(image_shape, 255)
-
-    elif fill_method == 'mean_per_channel':
-        channel_means = tf.reduce_mean(images, axis=[1, 2])
-		channel_means = tf.cast(channel_means, tf.int32)
-        contents = tf.broadcast_to(channel_means[:, None, None, :], image_shape)
-
-    elif fill_method == 'random':
-        color_grid = tf.random.uniform(
-            [batch_size, img_channels, grid_size[0], grid_size[1]],
-            minval=0, maxval=256,
-            dtype=tf.int32
-        )
-        # Fill patches with the color of the corresponding grid points
-        contents = tf.repeat(color_grid, repeats=patch_size[0] + 1, axis=1)
-        contents = tf.repeat(contents, repeats=patch_size[1] + 1, axis=2)
-        contents = contents[:, :img_height, :img_width]
-
-    elif fill_method == 'noise':
-        contents = tf.random.uniform(image_shape, minval=0, maxval=256, dtype=tf.int32)
-
-    return contents
-
 
 @tf.function
 def random_hide_and_seek(
@@ -141,6 +17,17 @@ def random_hide_and_seek(
         bernoulli_mix: bool = False
     ) -> tf.Tensor:
 
+ 
+
+    # Check the arguments passed to the function
+    _check_random_hide_and_seek_args(
+        erased_patches, grid_size, fill_method,
+        pixels_range, augmentation_ratio, bernoulli_mix)
+
+
+
+
+class RandomHideAndSeek(tf.keras.Layer):
     """
     Applies the "Hide-and-Seek" data augmentation technique to a batch of images.
 
@@ -214,52 +101,6 @@ def random_hide_and_seek(
         range as the input images.
     """
 
-    # Check the arguments passed to the function
-    _check_random_hide_and_seek_args(
-        erased_patches, grid_size, fill_method,
-        pixels_range, augmentation_ratio, bernoulli_mix)
-
-    original_image_shape = tf.shape(images)
-
-    # Reshape images with shape [B, H, W] to [B, H, W, 1]
-    if images.shape.rank == 3:
-        images = tf.expand_dims(images, axis=-1)
-    image_shape = tf.shape(images)
-
-    # Save images data type and rescale pixel values to (0, 255)
-    pixels_dtype = images.dtype
-    images = rescale_pixel_values(images, pixels_range, (0, 255), dtype=tf.int32)
-
-    # Generate a boolean mask with value True inside the areas to erase, False outside
-    patch_mask, patch_size = _gen_hs_patch_mask(image_shape[:3], erased_patches, grid_size)
-
-    # Generate the color contents of the erased patches
-    patch_contents = _gen_hs_patch_contents(images, grid_size, patch_size, fill_method)
-
-    # Erase the patches from the images and fill them
-    images_aug = tf.where(patch_mask[:, :, :, None], patch_contents, images)
-
-    # Mix the original and augmented images
-    output_images, _ = mix_augmented_images(images, images_aug, augmentation_ratio, bernoulli_mix)
-
-    # Restore shape, data type and pixels range of input images
-    output_images = tf.reshape(output_images, original_image_shape)
-    output_images = rescale_pixel_values(output_images, (0, 255), pixels_range, dtype=pixels_dtype)
-
-    return output_images
-
-
-class RandomHideAndSeek(tf.keras.Layer):
-    """
-    This keras layer implements the "Hide-and-Seek" data augmentation 
-    technique. It is intended to be used as a preprocessing layer,
-    similar to Tensorflow's built-in layers such as RandomContrast,
-    RandomFlip, etc.
-    
-    Refer to the docstring of the random_hide_and_seek() function for 
-    an explanation of the parameters of the layer.
-    """
-
     def __init__(self,
         grid_size: tuple[int, int] = (8, 8),
         erased_patches: tuple[int, int] = (0, 5),
@@ -278,16 +119,169 @@ class RandomHideAndSeek(tf.keras.Layer):
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-    def call(self, inputs, training=None):
-        return random_hide_and_seek(
-            inputs,
-            grid_size=self.grid_size,
-            erased_patches=self.erased_patches,
-            fill_method=self.fill_method,
-            pixels_range=self.pixels_range,
-            augmentation_ratio=self.augmentation_ratio,
-            bernoulli_mix=self.bernoulli_mix
+        self._check_arguments()
+
+
+    def _check_arguments(self):
+        """
+        Checks the arguments passed to the `random_hide_and_seek` function
+        """
+
+        check_dataaug_function_arg(
+            self.grid_size,
+            context={'arg_name': 'grid_size', 'function_name' : 'random_hide_and_seek'},
+            constraints={'format': 'tuple', 'tuple_ordering': 'None', 'data_type': 'int', 'min_val': ('>', 0)}
         )
+
+        check_dataaug_function_arg(
+            self.erased_patches,
+            context={'arg_name': 'erased_patches', 'function_name' : 'random_hide_and_seek'},
+            constraints={'format': 'tuple', 'data_type': 'int', 'min_val': ('>=', 0)}
+        )
+
+        supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
+        if self.fill_method not in supported_fill_methods:
+            raise ValueError(
+                '\nArgument `fill_method` of function `random_hide_and_seek`: '
+                f'expecting one of {supported_fill_methods}\n'
+                f'Received: {self.fill_method}'
+            )
+
+        check_dataaug_function_arg(
+            self.pixels_range,
+            context={'arg_name': 'pixels_range', 'function_name' : 'random_hide_and_seek'},
+            constraints={'format': 'tuple'}
+        )
+
+        check_dataaug_function_arg(
+            self.augmentation_ratio,
+            context={'arg_name': 'augmentation_ratio', 'function_name' : 'random_hide_and_seek'},
+            constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
+        )
+
+        if not isinstance(self.bernoulli_mix, bool):
+            raise ValueError(
+                'Argument `bernoulli_mix` of function `random_hide_and_seek`: '
+                f'expecting a boolean value\nReceived: {self.bernoulli_mix}'
+            )
+
+
+    def _gen_patch_mask(self, image_shape):
+        """
+        Generates a boolean mask that will be used to erase the patches from 
+        the images. Value is True inside areas to erase, False outside.
+        """
+
+        batch_size, img_height, img_width = tf.unstack(image_shape[:3])
+        grid_h = self.grid_size[0]
+        grid_w = self.grid_size[1]
+
+        # Sample the coordinates (x, y) of the grid points where
+        # the corresponding patches in the image will be erased
+        num_patches = tf.random.uniform(
+            [batch_size],
+            minval=self.erased_patches[0],
+            maxval=self.erased_patches[1] + 1,
+            dtype=tf.int32
+        )
+
+        # Don't erase more patches than total available (for robustness)
+        num_patches = tf.minimum(num_patches, grid_h * grid_w)
+
+        indices = tf.argsort(tf.random.uniform([batch_size, grid_h * grid_w]))
+
+        grid_mask = tf.where(indices < num_patches[:, None], True, False)
+        grid_mask = tf.reshape(grid_mask, [batch_size, grid_h, grid_w])
+
+        # Calculate width and height of patches
+        patch_h = tf.cast(img_height / grid_h, tf.int32)
+        patch_w = tf.cast(img_width / grid_w, tf.int32)
+        patch_size = tf.stack([patch_h, patch_w], axis=-1)
+
+        # Fill patches with the mask values of the corresponding grid points
+        patch_mask = tf.repeat(grid_mask, repeats=patch_h + 1, axis=1)
+        patch_mask = tf.repeat(patch_mask, repeats=patch_w + 1, axis=2)
+
+        # Truncate mask to image size
+        patch_mask = patch_mask[:, :img_height, :img_width]
+
+        return patch_mask, patch_size
+
+
+    def _gen_patch_contents(self, images, patch_size):
+
+        """
+        This function generates the color contents of the erased patches,
+        accordingly to the specified fill method: random color, uniform color,
+        or noise.
+        It outputs a tensor with shape [batch_size, img_width, img_height, 3].
+        """
+
+        image_shape = tf.shape(images)
+        batch_size, img_height, img_width, img_channels = tf.unstack(image_shape)
+
+        if self.fill_method == 'black':
+            contents = tf.zeros(image_shape, dtype=tf.int32)
+
+        elif self.fill_method == 'gray':
+            contents = tf.fill(image_shape, 128)
+
+        elif self.fill_method == 'white':
+            contents = tf.fill(image_shape, 255)
+
+        elif self.fill_method == 'mean_per_channel':
+            channel_means = tf.reduce_mean(images, axis=[1, 2])
+            channel_means = tf.cast(channel_means, tf.int32)
+            contents = tf.broadcast_to(channel_means[:, None, None, :], image_shape)
+
+        elif self.fill_method == 'random':
+            color_grid = tf.random.uniform(
+                [batch_size, self.grid_size[0], self.grid_size[1], img_channels],
+                minval=0, maxval=256,
+                dtype=tf.int32
+            )
+
+            # Fill patches with the color of the corresponding grid points
+            contents = tf.repeat(color_grid, repeats=patch_size[0] + 1, axis=1)
+            contents = tf.repeat(contents, repeats=patch_size[1] + 1, axis=2)
+            contents = contents[:, :img_height, :img_width]
+
+        elif self.fill_method == 'noise':
+            contents = tf.random.uniform(image_shape, minval=0, maxval=256, dtype=tf.int32)
+
+        return contents
+
+
+    def call(self, images, training=None):
+        original_image_shape = tf.shape(images)
+
+        # Reshape images with shape [B, H, W] to [B, H, W, 1]
+        if images.shape.rank == 3:
+            images = tf.expand_dims(images, axis=-1)
+        image_shape = tf.shape(images)
+
+        # Save images data type and rescale pixel values to (0, 255)
+        pixels_dtype = images.dtype
+        images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=tf.int32)
+
+        # Generate a boolean mask with value True inside the areas to erase, False outside
+        patch_mask, patch_size = self._gen_patch_mask(image_shape)
+
+        # Generate the color contents of the erased patches
+        patch_contents = self._gen_patch_contents(images, patch_size)
+
+        # Erase the patches from the images and fill them
+        images_aug = tf.where(patch_mask[:, :, :, None], patch_contents, images)
+
+        # Mix the original and augmented images
+        output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
+
+        # Restore shape, data type and pixels range of input images
+        output_images = tf.reshape(output_images, original_image_shape)
+        output_images = rescale_pixel_values(output_images, (0, 255), self.pixels_range, dtype=pixels_dtype)
+
+        return output_images
+
 
     def get_config(self):
         base_config = super().get_config()

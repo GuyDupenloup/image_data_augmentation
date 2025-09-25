@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-from hide_and_seek import random_hide_and_seek
-from cutout import random_cutout
-from erasing import random_erasing
-from grid_mask import random_grid_mask
-from cutblur import random_cutblur
-from cutpaste import random_cutpaste
-from cutswap import random_cutswap
-from cut_thumbnail import random_cut_thumbnail
+from cutout import RandomCutout
+from erasing import RandomErasing
+from hide_and_seek import RandomHideAndSeek
+from grid_mask import RandomGridMask
+from cutblur import RandomCutBlur
+from cutpaste import RandomCutPaste
+from cutswap import RandomCutSwap
+from cut_thumbnail import RandomCutThumbnail
 from cutmix import random_cutmix
 from mixup import random_mixup
 
@@ -57,57 +57,65 @@ def _augment_images(images, labels, function):
     Calls the data augmentation functions and returns the augmented images
     """
     
-    if function == 'random_cutout':
-        return random_cutout(
-            images,
+    if function == 'RandomCutout':
+        cutout = RandomCutout(
             patch_area=0.1,
             fill_method='black'
         )
-    elif function == 'random_erasing':
-        return random_erasing(
-            images,
+        images_aug = cutout(images)
+
+    elif function == 'RandomErasing':
+        erasing = RandomErasing(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
             fill_method='noise'
         )
-    elif function == 'random_hide_and_seek':
-        return random_hide_and_seek(
-            images,
+        images_aug = erasing(images)
+
+    elif function == 'RandomHideAndSeek':
+        hide_and_seek = RandomHideAndSeek(
             grid_size=(4, 4),
             erased_patches=(1, 5),
-            fill_method='mean_per_channel'
+            fill_method='random'
         )
-    elif function == 'random_grid_mask':
-        return random_grid_mask(
-            images,
+        images_aug = hide_and_seek(images)
+
+    elif function == 'RandomGridMask':
+        grid_mask = RandomGridMask(
             unit_length=(0.2, 0.4),
             masked_ratio=0.5,
             fill_method='gray'
         )
-    elif function == 'random_cutblur':
-        return random_cutblur(
-            images,
+        images_aug = grid_mask(images)
+
+    elif function == 'RandomCutBlur':
+        cutblur = RandomCutBlur(
             patch_area=(0.2, 0.4),
             patch_aspect_ratio=(0.3, 0.4),
             blur_factor=0.2
         )
-    elif function == 'random_cutpaste':
-        return random_cutpaste(
-            images,
+        images_aug = cutblur(images)
+
+    elif function == 'RandomCutPaste':
+        cutpaste = RandomCutPaste(
             patch_area=(0.1, 0.3),
             patch_aspect_ratio=(0.3, 2.0)
         )
-    elif function == 'random_cutswap':
-        return random_cutswap(
-            images,
+        images_aug = cutpaste(images)
+
+    elif function == 'RandomCutSwap':
+        cutsawp = RandomCutSwap(
             patch_area=(0.1, 0.3),
             patch_aspect_ratio=(0.3, 2.0)
         )
-    elif function == 'random_cut_thumbnail':
-        return random_cut_thumbnail(
-            images,
+        images_aug = cutsawp(images)
+
+    elif function == 'RandomCutThumbnail':
+        cut_thumbnail = RandomCutThumbnail(
             thumbnail_area=0.1
         )
+        images_aug = cut_thumbnail(images)
+
     elif function == 'random_cutmix':
         images_aug, _ = random_cutmix(
             images,
@@ -115,19 +123,20 @@ def _augment_images(images, labels, function):
             alpha=1.0,
             patch_aspect_ratio=(0.3, 3.0),
         )
-        return images_aug
+
     elif function == 'random_mixup':
         images_aug, _ = random_mixup(
             images,
             labels,
             alpha=1.0
         )
-        return images_aug
     else:
         raise ValueError(f"Unknown data augmentation function `{function}`")
 
+    return images_aug
 
-def run_test(image_size, images_per_function, grayscale, functions_to_test, shuffling_seed):
+
+def run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed):
 
     # Set the minimum batch size to 64 (useful for functions
     # that sample another image from the batch)
@@ -139,15 +148,15 @@ def run_test(image_size, images_per_function, grayscale, functions_to_test, shuf
         if grayscale:
             images = images[..., 0]
 
-        print(f"Running function '{functions_to_test[i]}'")
-        images_aug = _augment_images(images, labels, functions_to_test[i])
+        print(f"Running '{test_list[i]}'")
+        images_aug = _augment_images(images, labels, test_list[i])
 
         # Plot the original and augmented images side-by-side
         for j in range(images_per_function):
-            _display_images(images[j], images_aug[j], functions_to_test[i])
+            _display_images(images[j], images_aug[j], test_list[i])
 
         # Exit when all the functions have tested
-        if i == len(functions_to_test) - 1:
+        if i == len(test_list) - 1:
             return
 
 
@@ -158,11 +167,17 @@ if __name__ == '__main__':
     grayscale = False
     shuffling_seed = None   # Set to an int value to always see the same sequence of images
 
-    functions_to_test = [
-        'random_cutout', 'random_erasing', 'random_hide_and_seek',
-        'random_grid_mask', 'random_cutblur', 'random_cutpaste',
-        'random_cutswap', 'random_cut_thumbnail', 'random_cutmix',
+    test_list = [
+        'RandomCutout', 
+        'RandomErasing',
+        'RandomHideAndSeek',
+        'RandomGridMask', 
+        'RandomCutBlur',
+        'RandomCutPaste',
+        'RandomCutSwap', 
+        'RandomCutThumbnail',
+        'random_cutmix',
         'random_mixup'
     ]
 
-    run_test(image_size, images_per_function, grayscale, functions_to_test, shuffling_seed)
+    run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)
