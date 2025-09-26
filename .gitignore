@@ -1,2 +1,5 @@
 __pycache__/
 src/pt/data
+src/tf/model.h5
+src/tf/augmented_model.weights.h5
+src/tf/best_model.weights.h5

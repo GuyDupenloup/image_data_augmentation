@@ -4,40 +4,106 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from tensorflow.keras.layers import RandomContrast, RandomBrightness, RandomFlip, RandomRotation
+
+from cutout import RandomCutout
+from erasing import RandomErasing
+from hide_and_seek import RandomHideAndSeek
+from grid_mask import RandomGridMask
+from cutblur import RandomCutBlur
+from cutpaste import RandomCutPaste
+from cutswap import RandomCutSwap
+from cut_thumbnail import RandomCutThumbnail
 from cutmix import random_cutmix
+from mixup import random_mixup
 
 
 class CustomModel(tf.keras.Model):
 
-    def __init__(self, base_model, **kwargs):
+    def __init__(self, base_model, pixels_range, **kwargs):
         super().__init__(**kwargs)
+
         self.base_model = base_model
-        
+
         # Initialize Tensorflow augmentation layers
-        self.contrast_aug = RandomContrast(factor=0.2)
-        self.brightness_aug = RandomBrightness(factor=0.2)
-        self.flip_aug = RandomFlip(mode='horizontal')
-        self.rotation_aug = RandomRotation(factor=0.05)
-    
+        self.random_contrast = RandomContrast(factor=0.2)
+        self.random_brightness = RandomBrightness(factor=0.2)
+        self.random_flip = RandomFlip(mode='horizontal')
+        self.random_rotation = RandomRotation(factor=0.05)
+        self.random_cutout = RandomCutout(
+            patch_area=0.3,
+            fill_method='black',
+            pixels_range=pixels_range,
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
+        self.random_erasing = RandomErasing(
+            patch_area=(0.05, 0.3),
+            patch_aspect_ratio=(0.3, 3.0),
+            fill_method='black',
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
+        self.random_hide_and_seek = RandomHideAndSeek(
+            grid_size=(4, 4),
+            erased_patches=(1, 5),
+            fill_method='black',
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
+        self.random_grid_mask = RandomGridMask(
+            unit_length=(0.2, 0.4),
+            masked_ratio=0.5,
+            fill_method='black',
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
+        self.random_cutblur = RandomCutBlur(
+            patch_area=(0.2, 0.4),
+            patch_aspect_ratio=(0.3, 0.4),
+            blur_factor=0.2,
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
+        self.random_cutpaste = RandomCutPaste(
+            patch_area=(0.1, 0.3),
+            patch_aspect_ratio=(0.3, 2.0),
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
+        self.random_cutswap = RandomCutSwap(
+            patch_area=(0.1, 0.3),
+            patch_aspect_ratio=(0.3, 2.0),
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
+        self.random_cut_thumbnail = RandomCutThumbnail(
+            thumbnail_area=0.1,
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
+
+
     def call(self, inputs, training=None):
         return self.base_model(inputs, training=training)
     
+
     def train_step(self, data):
         images, labels = data
 
         # Apply augmentations during training
-        images = self.contrast_aug(images, training=True)
-        images = self.brightness_aug(images, training=True)
-        images, labels = random_cutmix(
-            images,
-            labels,
-            alpha=1.0,
-            patch_aspect_ratio=(0.3, 3.0),
-            augmentation_ratio=0.1,   # Use 10% augmented images
-            bernoulli_mix=False
-        )
-        images = self.flip_aug(images, training=True)
-        images = self.rotation_aug(images, training=True)
+        images = self.random_contrast(images, training=True)
+        images = self.random_brightness(images, training=True)
+        images = self.random_flip(images, training=True)
+        images = self.random_rotation(images, training=True)
+
+        images = self.random_cutout(images, training=True)
+        images = self.random_erasing(images, training=True)
+        images = self.random_hide_and_seek(images, training=True)
+        images = self.random_grid_mask(images, training=True)
+        images = self.random_cutpaste(images, training=True)
+        images = self.random_cutswap(images, training=True)
+        images = self.random_cutblur(images, training=True)
+        images = self.random_cut_thumbnail(images, training=True)
 
         with tf.GradientTape() as tape:
             # Make a prediction and compute the loss value
@@ -70,6 +136,7 @@ def _get_data_loaders(image_size, num_classes, batch_size, rescaling):
         image = tf.image.resize(image, image_size)
         image = tf.cast(image, tf.float32)
         image = rescaling[0] * image + rescaling[1]
+        # One-hot labels are required for CutMix and Mixup
         label = tf.one_hot(label, num_classes, on_value=1.0, off_value=0.0, dtype=tf.float32)
         return image, label
 
@@ -118,17 +185,19 @@ def train():
     batch_size = 32
     epochs = 5
     
+    pixels_range = (0, 1)
+
     # Get dataloaders for the Flowers dataset
     train_ds, val_ds = _get_data_loaders(image_shape[:2], num_classes, batch_size, rescaling)
 
     # Create custom model
     base_model = get_base_model(image_shape, num_classes)
-    model = CustomModel(base_model)
+    model = CustomModel(base_model, pixels_range)
     
     # Compile the model
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-        loss=tf.keras.losses.CategoricalCrossentropy(),   # One-hot encoded labels
+        loss=tf.keras.losses.CategoricalCrossentropy(),
         metrics=['accuracy']
     )
 
