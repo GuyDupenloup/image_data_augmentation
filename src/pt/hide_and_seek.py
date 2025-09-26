@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn.functional as F
 from torchvision.transforms import v2
@@ -14,8 +13,8 @@ class RandomHideAndSeek(v2.Transform):
 
     Reference paper:
         Krishna Kumar Singh, Hao Yu, Aron Sarmasi, Gautam Pradeep, Yong Jae Lee (2018).
-        “Hide-and-Seek: A Data Augmentation Technique for Weakly-Supervised Localization 
-        and Beyond”.
+        "Hide-and-Seek: A Data Augmentation Technique for Weakly-Supervised Localization 
+        and Beyond".
 
     For each image in the batch:
     - The image is divided into a regular grid of patches.
@@ -145,7 +144,7 @@ class RandomHideAndSeek(v2.Transform):
             )
 
         # Don't erase more patches than total available (for robustness)
-        num_patches = torch.minimum(num_patches, torch.tensor(grid_size[0] * grid_size[1]))
+        num_patches = torch.minimum(num_patches, torch.tensor(grid_size[0] * grid_size[1], device=device))
 
         indices = torch.argsort(torch.rand(batch_size, grid_size[0] * grid_size[1], device=device))
 
@@ -243,4 +242,5 @@ class RandomHideAndSeek(v2.Transform):
         output_images = output_images.reshape(original_image_shape)
         output_images = rescale_pixel_values(output_images, (0, 255), self.pixels_range, dtype=pixels_dtype)
 
-        return images_aug
+        return output_images
+    

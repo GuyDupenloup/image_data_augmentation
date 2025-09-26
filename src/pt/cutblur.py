@@ -1,4 +1,3 @@
-
 import math
 import torch
 import torch.nn.functional as F
@@ -126,16 +125,16 @@ class RandomCutblur(v2.Transform):
             images = images.unsqueeze(1)  # insert a channel dimension at index 1
 
         # Original image size as ints for interpolate
-        orig_size = tuple(torch.tensor(images.shape[2:], device=device).to(torch.int64).tolist())
+        original_size = images.shape[2:]
 
         # Low-res size
         image_size = torch.tensor(images.shape[2:], dtype=torch.float32, device=device)
         low_res_size = self.blur_factor * image_size
         low_res_size = torch.round(low_res_size).to(torch.int64)
 
-        # Interpolate
+        # Downsize then up-size images
         smaller_images = F.interpolate(images, size=tuple(low_res_size.tolist()), mode='bilinear', align_corners=False)
-        low_res_images = F.interpolate(smaller_images, size=orig_size, mode='bilinear', align_corners=False)
+        low_res_images = F.interpolate(smaller_images, size=original_size, mode='bilinear', align_corners=False)
 
         # Match dtype
         low_res_images = low_res_images.to(images.dtype)
@@ -155,4 +154,4 @@ class RandomCutblur(v2.Transform):
         output_images = output_images.reshape(original_image_shape)
 
         return output_images
-
+    

@@ -1,5 +1,4 @@
 
-import math
 import torch
 import torch.nn.functional as F
 from torchvision.transforms import v2
@@ -105,6 +104,7 @@ class RandomCutSwap(v2.Transform):
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
         original_image_shape = images.shape
+        device = images.device  # keep track of input device
 
         # Reshape grayscale images [B,H,W] -> [B,1,H,W]
         if images.ndim == 3:
@@ -120,18 +120,20 @@ class RandomCutSwap(v2.Transform):
         mask_1 = gen_patch_mask(images.shape, corners_1)
         if mask_1.ndim == 3:
             mask_1 = mask_1.unsqueeze(1)  # [B,1,H,W]
+        mask_1 = mask_1.to(device)
 
         # Sample second patches and generate mask
         corners_2 = sample_patch_locations(images, patch_dims)
         mask_2 = gen_patch_mask(images.shape, corners_2)
         if mask_2.ndim == 3:
             mask_2 = mask_2.unsqueeze(1)  # [B,1,H,W]
+        mask_2 = mask_2.to(device)
 
         # ---- Gather patch contents (all channels)
-        indices_1 = torch.nonzero(mask_1, as_tuple=False)  # [num_pixels, 4]
+        indices_1 = mask_1.nonzero(as_tuple=False)  # [num_pixels, 4]
         contents_1 = images[indices_1[:, 0], :, indices_1[:, 2], indices_1[:, 3]]  # [num_pixels, C]
 
-        indices_2 = torch.nonzero(mask_2, as_tuple=False)
+        indices_2 = mask_2.nonzero(as_tuple=False)
         contents_2 = images[indices_2[:, 0], :, indices_2[:, 2], indices_2[:, 3]]
 
         # ---- Swap patches
@@ -141,6 +143,7 @@ class RandomCutSwap(v2.Transform):
 
         # ---- Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
+        output_images = output_images.to(device)
 
         # ---- Restore original shape
         output_images = output_images.reshape(original_image_shape)

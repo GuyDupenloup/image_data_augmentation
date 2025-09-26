@@ -105,6 +105,7 @@ class RandomCutPaste(v2.Transform):
 
         # Preserve original shape
         original_image_shape = images.shape
+        device = images.device  # ensure we keep track of the device
 
         # Reshape [B,H,W] -> [B,1,H,W] if needed
         if images.ndim == 3:
@@ -115,25 +116,27 @@ class RandomCutPaste(v2.Transform):
 
         source_corners = sample_patch_locations(images, patch_dims)
         source_mask = gen_patch_mask(images, source_corners)
-        source_mask = source_mask.unsqueeze(1)
+        source_mask = source_mask.unsqueeze(1).to(device)
 
         target_corners = sample_patch_locations(images, patch_dims)
         target_mask = gen_patch_mask(images, target_corners)
-        target_mask = target_mask.unsqueeze(1)
+        target_mask = target_mask.unsqueeze(1).to(device)
 
         # ---- Gather source patch contents (all channels)
-        source_indices = torch.nonzero(source_mask, as_tuple=False)  # [num_pixels, 4]
+        # use mask.nonzero so indices are on the same device as the mask
+        source_indices = source_mask.nonzero(as_tuple=False)  # [num_pixels, 4]
         source_contents = images[source_indices[:, 0], :,  # all channels
                                 source_indices[:, 2], source_indices[:, 3]]  # [num_pixels, C]
 
         # ---- Scatter into target patches (all channels)
-        target_indices = torch.nonzero(target_mask, as_tuple=False)
+        target_indices = target_mask.nonzero(as_tuple=False)
         images_aug = images.clone()
         images_aug[target_indices[:, 0], :,  # all channels
                 target_indices[:, 2], target_indices[:, 3]] = source_contents
 
         # ---- Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
+        output_images = output_images.to(device)  # ensure result on same device
 
         # ---- Restore original shape
         output_images = output_images.reshape(original_image_shape)

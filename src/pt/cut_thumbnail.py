@@ -152,7 +152,7 @@ class RandomCutThumbnail(v2.Transform):
             images = images.unsqueeze(1)
 
         image_shape = images.shape
-        batch_size, channels, img_height, img_width = image_shape[:2]
+        batch_size, channels = image_shape[:2]
 
         # ---- Calculate thumbnail size and resize
         thumb_h, thumb_w = self._calculate_thumbnail_size(images.shape[2:], self.thumbnail_area)

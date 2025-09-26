@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn.functional as F
 from torchvision.transforms import v2
@@ -148,7 +147,7 @@ class RandomGridMask(v2.Transform):
         # Sample unit lengths and calculate masked area lengths
         length_fract = torch.rand(batch_size, device=device) * (unit_length[1] - unit_length[0]) + unit_length[0]
         
-        min_img_side = torch.minimum(torch.tensor(img_height), torch.tensor(img_width)).float()
+        min_img_side = torch.minimum(torch.tensor(img_height, device=device), torch.tensor(img_width, device=device)).float()
         unit_sizes = length_fract * min_img_side
         masked_area_sizes = torch.round(unit_sizes * masked_ratio)
 
@@ -199,7 +198,7 @@ class RandomGridMask(v2.Transform):
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
         # Generate a mask to erase the masked areas of units
-        mask = self._generate_grid_mask(image_shape, self.unit_length, self.masked_ratio)
+        mask = self._generate_grid_mask(images , self.unit_length, self.masked_ratio)
 
         # Generate the contents of the erased areas
         unit_contents = gen_patch_contents(images, self.fill_method)
@@ -214,4 +213,5 @@ class RandomGridMask(v2.Transform):
         output_images = output_images.reshape(original_image_shape)
         output_images = rescale_pixel_values(output_images, (0, 255), self.pixels_range, dtype=pixels_dtype)
 
-        return images_aug
+        return output_images
+    
