@@ -6,10 +6,10 @@ from torchvision.transforms import v2
 from typing import Tuple, Union
 
 from argument_utils import check_dataaug_function_arg, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
-from dataaug_utils import rescale_pixel_values, sample_patch_locations, gen_patch_mask, gen_patch_contents, mix_augmented_images
+from dataaug_utils import sample_patch_dims, sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
-class RandomCutout(v2.Transform):
+class RandomMixup(v2.Transform):
     """
     Applies the "Cutout" data augmentation technique to a batch of images.
 
@@ -75,17 +75,13 @@ class RandomCutout(v2.Transform):
 
     def __init__(
         self,
-        patch_area: float = 0.1,
-        fill_method: str = 'black',
-        pixels_range: Tuple[float, float] = (0, 1),
+        alpha: float = 1.0,
         augmentation_ratio: float = 1.0,
-        bernoulli_mix: bool = False,
+        bernoulli_mix: bool = False
     ):
         super().__init__()
 
-        self.patch_area = patch_area
-        self.fill_method = fill_method
-        self.pixels_range = pixels_range
+        self.alpha = alpha
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
@@ -95,55 +91,53 @@ class RandomCutout(v2.Transform):
 
     def _check_arguments(self):
         """
-        Checks the arguments passed to `RandomCutout`
+        Checks the arguments passed to `RandomMixup`
         """
         check_dataaug_function_arg(
-            self.patch_area,
-            context={'arg_name': 'patch_area', 'function_name' : 'random_cutout'},
-            constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
+            self.alpha,
+            context={'arg_name': 'alpha', 'function_name' : 'RandomCutMix'},
+            constraints={'format': 'number'}
         )
-        check_fill_method_arg(self.fill_method, 'RandomCutout')
-        check_pixels_range_args(self.pixels_range, 'RandomCutout')
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutout')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutMix')
 
 
-    # def forward(self, images: torch.Tensor) -> torch.Tensor:
-    def forward(self, images) -> torch.Tensor:
+    def forward(self, data) -> torch.Tensor:
 
-        original_image_shape = images.shape
-        if images.ndim == 3:  # i.e., [B, H, W]
-            images = images.unsqueeze(1)  # insert a channel dimension at index 1
+        images, labels = data
 
-        batch_size, _, img_height, img_width = images.shape  # Now consistently [B, C, H, W]
+        original_shape = images.shape
 
-        pixels_dtype = images.dtype
-        images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
+        # Reshape grayscale images [B, H, W] -> [B, H, W, 1]
+        if images.ndim == 3:
+            images = images.unsqueeze(-1)  # [B, H, W, 1]
 
-        # Calculate patch size
-        area = self.patch_area * img_height * img_width
-        patch_size = int(round(math.sqrt(area)))
-        patch_size = max(0, min(patch_size, img_height, img_width))
+        batch_size = images.shape[0]
+
+        # Sample lambda values from Beta distribution
+        gamma1 = torch.distributions.Gamma(self.alpha, 1.0).sample([batch_size])
+        gamma2 = torch.distributions.Gamma(self.alpha, 1.0).sample([batch_size])
+        lambda_vals = gamma1 / (gamma1 + gamma2)
+
+        # Randomly select other images in the batch
+        shuffle_indices = torch.randperm(batch_size, device=images.device)
+        shuffled_images = images[shuffle_indices]
+        shuffled_labels = labels[shuffle_indices]
+
+        # Blend the images together
+        lambda_vals = lambda_vals.reshape([batch_size, 1, 1, 1])
+        images_aug = lambda_vals * images + (1 - lambda_vals) * shuffled_images
+
+        # Weigh the labels
+        lambda_vals = lambda_vals.reshape([batch_size, 1])
+        labels = labels.to(torch.float32)
+        labels_aug = lambda_vals * labels + (1.0 - lambda_vals) * shuffled_labels
+
+        # Mix the original and augmented images/labels
+        output_images, augment_mask = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
+        output_labels = torch.where(augment_mask[:, None], labels_aug, labels)
+
+        # Restore original image shape
+        output_images = output_images.reshape(original_shape)
+
+        return output_images, output_labels
     
-        # Create batched patch sizes
-        batched_patch_size = (
-            torch.full((batch_size,), patch_size, dtype=torch.int32, device=images.device),
-            torch.full((batch_size,), patch_size, dtype=torch.int32, device=images.device)
-        )
-
-        patch_corners = sample_patch_locations(images, batched_patch_size)
-        patch_mask = gen_patch_mask(images, patch_corners)
-
-        # Generate color contents of patches
-        patch_contents = gen_patch_contents(images, self.fill_method)
-
-        # Apply mask correctly - patch_mask is [B, H, W], need to broadcast over channel dim
-        images_aug = torch.where(patch_mask[:, None, :, :], patch_contents, images)
-
-        # Mix the original and augmented images
-        output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
-
-        # Restore shape, data type and pixels range of input images
-        output_images = output_images.reshape(original_image_shape)
-        output_images = rescale_pixel_values(output_images, (0, 255), self.pixels_range, dtype=pixels_dtype)
-
-        return output_images

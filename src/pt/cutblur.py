@@ -8,7 +8,7 @@ from argument_utils import check_dataaug_function_arg, check_augment_mix_args
 from dataaug_utils import sample_patch_dims, sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
-class RandomCutblur(v2.Transform):
+class RandomCutBlur(v2.Transform):
     """
     Applies the "CutBlur" data augmentation technique to a batch of images.
 

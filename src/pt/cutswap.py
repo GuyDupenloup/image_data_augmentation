@@ -110,21 +110,19 @@ class RandomCutSwap(v2.Transform):
         if images.ndim == 3:
             images = images.unsqueeze(1)
 
-        B, C, H, W = images.shape
-
         # ---- Sample patches
         patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio)
 
         # Sample first patches and generate mask
         corners_1 = sample_patch_locations(images, patch_dims)
-        mask_1 = gen_patch_mask(images.shape, corners_1)
+        mask_1 = gen_patch_mask(images, corners_1)
         if mask_1.ndim == 3:
             mask_1 = mask_1.unsqueeze(1)  # [B,1,H,W]
         mask_1 = mask_1.to(device)
 
         # Sample second patches and generate mask
         corners_2 = sample_patch_locations(images, patch_dims)
-        mask_2 = gen_patch_mask(images.shape, corners_2)
+        mask_2 = gen_patch_mask(images, corners_2)
         if mask_2.ndim == 3:
             mask_2 = mask_2.unsqueeze(1)  # [B,1,H,W]
         mask_2 = mask_2.to(device)

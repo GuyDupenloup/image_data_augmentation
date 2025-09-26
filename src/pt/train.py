@@ -7,6 +7,17 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import Flowers102
 from torchvision.models import mobilenet_v3_small
 
+from cutout import RandomCutout
+from erasing import RandomErasing
+from hide_and_seek import RandomHideAndSeek
+from grid_mask import RandomGridMask
+from cutblur import RandomCutBlur
+from cutpaste import RandomCutPaste
+from cutswap import RandomCutSwap
+from cut_thumbnail import RandomCutThumbnail
+from cutmix import RandomCutMix
+from mixup import RandomMixup
+
 
 def get_data_loaders(image_size, rescaling, num_classes, batch_size, device):
 
@@ -38,9 +49,85 @@ def get_data_loaders(image_size, rescaling, num_classes, batch_size, device):
 
 
 def augment_data(images, labels, pixels_range):
-
+ 
     images = v2.ColorJitter(brightness=0.2, contrast=0.2)(images)
     images = v2.RandomHorizontalFlip(p=0.5)(images)
+
+    images = RandomCutout(
+        patch_area=0.1,
+        fill_method='mean_per_channel',
+        pixels_range=pixels_range,
+        augmentation_ratio=1.0,
+        bernoulli_mix=False
+    )(images)
+
+    images = RandomErasing(
+        patch_area=(0.05, 0.3),
+        patch_aspect_ratio=(0.3, 3.0),
+        fill_method='black',
+        pixels_range=pixels_range,
+        augmentation_ratio=0.1,
+        bernoulli_mix=False
+    )(images)
+
+    images = RandomHideAndSeek(
+        grid_size=(4, 4),
+        erased_patches=(1, 5),
+        fill_method='black',
+        pixels_range=pixels_range,
+        augmentation_ratio=0.1,
+        bernoulli_mix=False
+    )(images)
+
+    images = RandomGridMask(
+        unit_length=(0.2, 0.4),
+        masked_ratio=0.5,
+        fill_method='black',
+        pixels_range=pixels_range,
+        augmentation_ratio=0.1,
+        bernoulli_mix=False
+    )(images)
+
+    images = RandomCutBlur(
+        patch_area=(0.2, 0.4),
+        patch_aspect_ratio=(0.3, 0.4),
+        blur_factor=0.2,
+        augmentation_ratio=0.1,
+        bernoulli_mix=False
+    )(images)
+
+    images = RandomCutPaste(
+        patch_area=(0.1, 0.3),
+        patch_aspect_ratio=(0.3, 2.0),
+        augmentation_ratio=0.1,
+        bernoulli_mix=False
+    )(images)
+
+    images = RandomCutSwap(
+        patch_area=(0.1, 0.3),
+        patch_aspect_ratio=(0.3, 2.0),
+        augmentation_ratio=0.1,
+        bernoulli_mix=False
+    )(images)
+
+    images = RandomCutThumbnail(
+        thumbnail_area=0.1,
+        augmentation_ratio=0.1,
+        bernoulli_mix=False
+    )(images)
+
+    images, labels = RandomCutMix(
+        alpha=1.0,
+        patch_aspect_ratio=(0.3, 3.0),
+        augmentation_ratio=1.0,
+        bernoulli_mix=False
+    )((images, labels))
+
+    images, labels = RandomMixup(
+        alpha=1.0,
+        augmentation_ratio=1.0,
+        bernoulli_mix=False
+    )((images, labels))
 
     return images, labels
 

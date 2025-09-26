@@ -16,10 +16,12 @@ from cutout import RandomCutout
 from erasing import RandomErasing
 from hide_and_seek import RandomHideAndSeek
 from grid_mask import RandomGridMask
-from cutblur import RandomCutblur
+from cutblur import RandomCutBlur
 from cutpaste import RandomCutPaste
 from cutswap import RandomCutSwap
 from cut_thumbnail import RandomCutThumbnail
+from cutmix import RandomCutMix
+from mixup import RandomMixup
 
 
 def _get_data_loader(image_size, batch_size, seed):
@@ -42,7 +44,7 @@ def _get_data_loader(image_size, batch_size, seed):
 # ----------------------------------------
 # Display images
 # ----------------------------------------
-def _display_images(image, image_aug, function_name):
+def _display_images(image, image_aug, legend):
     """
     Displays original and augmented images side by side.
     """
@@ -55,7 +57,7 @@ def _display_images(image, image_aug, function_name):
     ax1.set_title('Original image')
 
     ax2.imshow(img_aug, cmap='gray' if img_aug.ndim==2 else None)
-    ax2.set_title(f'Augmented: {function_name}')
+    ax2.set_title(f'Augmented: {legend}')
 
     plt.tight_layout()
     plt.show()
@@ -109,8 +111,8 @@ def _augment_images(images, labels, function):
         )
         images_aug = grid_mask(images)
 
-    elif function == "RandomCutblur":
-        cutblur = RandomCutblur(
+    elif function == "RandomCutBlur":
+        cutblur = RandomCutBlur(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
             blur_factor=0.1,
@@ -146,6 +148,23 @@ def _augment_images(images, labels, function):
         )
         images_aug = cut_thumbnail(images)
 
+    elif function == "RandomCutMix":
+        cutmix = RandomCutMix(
+            alpha=1.0,
+            patch_aspect_ratio=(0.3, 3.0),
+            augmentation_ratio=1.0,
+            bernoulli_mix=False
+        )
+        images_aug, _ = cutmix((images, labels))
+
+    elif function == "RandomMixup":
+        mixup = RandomMixup(
+            alpha=1.0,
+            augmentation_ratio=1.0,
+            bernoulli_mix=False
+        )
+        images_aug, _ = mixup((images, labels))
+
     else:
         raise ValueError(f"Unknown function: {function}")
 
@@ -180,14 +199,16 @@ if __name__ == '__main__':
     shuffling_seed = None   # Set to an int value to always see the same sequence of images
 
     test_list = [
-        # 'RandomCutout',
+        'RandomCutout',
         'RandomErasing',
-        # 'RandomHideAndSeek',
-        # 'RandomGridMask',
-        # 'RandomCutblur',
-        # 'RandomCutPaste',
-        # 'RandomCutSwap',
-        # 'RandomCutThumbnail',
+        'RandomHideAndSeek',
+        'RandomGridMask',
+        'RandomCutBlur',
+        'RandomCutPaste',
+        'RandomCutSwap',
+        'RandomCutThumbnail',
+        'RandomCutMix',
+        'RandomMixup',
     ]
 
     run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)
