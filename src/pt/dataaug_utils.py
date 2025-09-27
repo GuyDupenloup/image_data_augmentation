@@ -3,13 +3,12 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_dataaug_function_arg, check_fill_method_arg, check_pixels_range_args
-
 
 def sample_patch_dims(
     images: torch.Tensor,
     patch_area: tuple[float, float],
-    patch_aspect_ratio: tuple[float, float]
+    patch_aspect_ratio: tuple[float, float],
+    alpha: float
 ) -> tuple[torch.Tensor, torch.Tensor]:
     
     """
@@ -36,15 +35,26 @@ def sample_patch_dims(
     device = images.device
     batch_size, _, img_height, img_width = images.shape
 
-    # Sample patch areas and aspect ratios uniformly
-    area_fraction = torch.empty(batch_size, device=device).uniform_(*patch_area)
-    aspect_ratio = torch.empty(batch_size, device=device).uniform_(*patch_aspect_ratio)
+    if isinstance(patch_area, (tuple, list)):
+        # Sample area fractions from Beta distribution
+        gamma1 = torch.distributions.Gamma(alpha, 1.0).sample([batch_size]).to(device)
+        gamma2 = torch.distributions.Gamma(alpha, 1.0).sample([batch_size]).to(device)
+        lambda_vals = gamma1 / (gamma1 + gamma2)
+        # Linearly rescale to the specified area range (this does not change the distribution)
+        area_fraction = patch_area[0] + lambda_vals * (patch_area[1] - patch_area[0])
+    else:
+        # Constant area fraction
+        area_fraction = torch.full([batch_size], patch_area, dtype=torch.float32, device=device)
 
-    # Compute patch area in absolute pixels
-    img_area = torch.tensor(float(img_width * img_height), device=device)
-    area = area_fraction * img_area
+    if isinstance(patch_aspect_ratio, (tuple, list)):
+        # Sample patch aspect ratios from uniform distribution
+        aspect_ratio = torch.empty(batch_size, device=device).uniform_(*patch_aspect_ratio)
+    else:
+        # Constant aspect ratio
+        aspect_ratio = torch.full([batch_size],  patch_aspect_ratio, dtype=torch.float32, device=device)
 
-    # Compute width/height from area + aspect ratio
+    # Compute patch width and height
+    area = area_fraction * float(img_width * img_height)
     patch_w = torch.sqrt(area / aspect_ratio)
     patch_h = patch_w * aspect_ratio
 

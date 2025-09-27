@@ -1,12 +1,10 @@
 
-import math
 import torch
 import torch.nn.functional as F
 from torchvision.transforms import v2
-from typing import Tuple, Union
 
-from argument_utils import check_dataaug_function_arg, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
-from dataaug_utils import sample_patch_dims, sample_patch_locations, gen_patch_mask, mix_augmented_images
+from argument_utils import check_argument, check_augment_mix_args
+from dataaug_utils import mix_augmented_images
 
 
 class RandomMixup(v2.Transform):
@@ -81,24 +79,25 @@ class RandomMixup(v2.Transform):
     ):
         super().__init__()
 
+        self.transform_name = 'RandomMixup'
         self.alpha = alpha
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
         # Check that all the arguments are valid
-        self._check_arguments()
+        self._check_transform_args()
 
 
-    def _check_arguments(self):
+    def _check_transform_args(self):
         """
-        Checks the arguments passed to `RandomMixup`
+        Checks that the arguments passed to the transform are valid
         """
-        check_dataaug_function_arg(
+        check_argument(
             self.alpha,
-            context={'arg_name': 'alpha', 'function_name' : 'RandomCutMix'},
+            context={'arg_name': 'alpha', 'caller_name' : self.transform_name},
             constraints={'format': 'number'}
         )
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutMix')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 
     def forward(self, data) -> torch.Tensor:

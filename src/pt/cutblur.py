@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_dataaug_function_arg, check_augment_mix_args
+from argument_utils import check_argument, check_augment_mix_args
 from dataaug_utils import sample_patch_dims, sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
@@ -75,43 +75,51 @@ class RandomCutBlur(v2.Transform):
         self,
         patch_area: tuple[float, float] = (0.05, 0.3),
         patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
+        alpha: float = 1.0,
         blur_factor: float = 0.1,
         augmentation_ratio: float = 1.0,
         bernoulli_mix: bool = False
     ):
         super().__init__()
 
+        self.transform_name = 'RandomCutBlur'
         self.patch_area = patch_area
         self.patch_aspect_ratio = patch_aspect_ratio
+        self.alpha = alpha
         self.blur_factor = blur_factor
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-        self._check_arguments()
+        self._check_transform_args()
 		
 
-    def _check_arguments(self):
+    def _check_transform_args(self):
         """
-        Checks the arguments passed to `RandomCutBlur`
+        Checks that the arguments passed to the transform are valid
         """
 
-        check_dataaug_function_arg(
+        check_argument(
             self.patch_area,
-            context={'arg_name': 'patch_area', 'function_name' : 'random_cutblur'},
+            context={'arg_name': 'patch_area', 'caller_name' : self.transform_name},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-        check_dataaug_function_arg(
+        check_argument(
             self.patch_aspect_ratio,
-            context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutblur'},
+            context={'arg_name': 'patch_aspect_ratio', 'caller_name' : self.transform_name},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
         )
-        check_dataaug_function_arg(
+        check_argument(
+            self.alpha,
+            context={'arg_name': 'alpha', 'caller_name' : self.transform_name},
+            constraints={'min_val': ('>', 0)}
+        )
+        check_argument(
             self.blur_factor,
-            context={'arg_name': 'blur_factor', 'function_name' : 'random_cutblur'},
+            context={'arg_name': 'blur_factor', 'caller_name' : self.transform_name},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
 
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutBlur')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
@@ -139,9 +147,12 @@ class RandomCutBlur(v2.Transform):
         # Match dtype
         low_res_images = low_res_images.to(images.dtype)
 
-        # Generate random patches
-        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio)
-        patch_corners = sample_patch_locations(images, patch_dims)
+        # Sample patch heights and widths
+        patch_sizes= sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+
+        # Sample patch locations, then generate a boolean mask
+        # (True inside patches, False outside)
+        patch_corners = sample_patch_locations(images, patch_sizes)
         patch_mask = gen_patch_mask(images, patch_corners)
 
         # Erase the patches from the images and fill them with the low-res images

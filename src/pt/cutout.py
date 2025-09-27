@@ -5,8 +5,13 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_dataaug_function_arg, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
-from dataaug_utils import rescale_pixel_values, sample_patch_locations, gen_patch_mask, gen_patch_contents, mix_augmented_images
+from argument_utils import (
+    check_argument, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
+)
+from dataaug_utils import (
+    sample_patch_dims, sample_patch_locations, gen_patch_mask, 
+    gen_patch_contents, mix_augmented_images, rescale_pixel_values
+)
 
 
 class RandomCutout(v2.Transform):
@@ -83,6 +88,7 @@ class RandomCutout(v2.Transform):
     ):
         super().__init__()
 
+        self.transform_name = 'RandomCutout'
         self.patch_area = patch_area
         self.fill_method = fill_method
         self.pixels_range = pixels_range
@@ -90,21 +96,21 @@ class RandomCutout(v2.Transform):
         self.bernoulli_mix = bernoulli_mix
 
         # Check that all the arguments are valid
-        self._check_arguments()
+        self._check_transform_args()
 
 
-    def _check_arguments(self):
+    def _check_transform_args(self):
         """
-        Checks the arguments passed to `RandomCutout`
+        Checks that the arguments passed to the transform are valid
         """
-        check_dataaug_function_arg(
+        check_argument(
             self.patch_area,
-            context={'arg_name': 'patch_area', 'function_name' : 'random_cutout'},
+            context={'arg_name': 'patch_area', 'caller_name' : self.transform_name},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-        check_fill_method_arg(self.fill_method, 'RandomCutout')
-        check_pixels_range_args(self.pixels_range, 'RandomCutout')
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutout')
+        check_fill_method_arg(self.fill_method, self.transform_name)
+        check_pixels_range_args(self.pixels_range, self.transform_name)
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 
     # def forward(self, images: torch.Tensor) -> torch.Tensor:
@@ -114,23 +120,14 @@ class RandomCutout(v2.Transform):
         if images.ndim == 3:  # i.e., [B, H, W]
             images = images.unsqueeze(1)  # insert a channel dimension at index 1
 
-        batch_size, _, img_height, img_width = images.shape  # Now consistently [B, C, H, W]
-
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
-        # Calculate patch size
-        area = self.patch_area * img_height * img_width
-        patch_size = int(round(math.sqrt(area)))
-        patch_size = max(0, min(patch_size, img_height, img_width))
-    
-        # Create batched patch sizes
-        batched_patch_size = (
-            torch.full((batch_size,), patch_size, dtype=torch.int32, device=images.device),
-            torch.full((batch_size,), patch_size, dtype=torch.int32, device=images.device)
-        )
+        # Calculate patch size (same value in all images), then sample patch locations
+        patch_sizes = sample_patch_dims(images, patch_area=self.patch_area, patch_aspect_ratio=1.0, alpha=1.0)
+        patch_corners = sample_patch_locations(images, patch_sizes)
 
-        patch_corners = sample_patch_locations(images, batched_patch_size)
+        # Generate boolean mask (True inside patches, False outside)
         patch_mask = gen_patch_mask(images, patch_corners)
 
         # Generate color contents of patches

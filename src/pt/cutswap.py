@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_dataaug_function_arg, check_augment_mix_args
+from argument_utils import check_argument, check_augment_mix_args
 from dataaug_utils import sample_patch_dims, sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
@@ -68,37 +68,42 @@ class RandomCutSwap(v2.Transform):
         self,
         patch_area: tuple[float, float] = (0.05, 0.3),
         patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
+        alpha: float = 1.0,
         augmentation_ratio: float = 1.0,
         bernoulli_mix: bool = False
     ):
         super().__init__()
 
+        self.transform_name = 'RandomCutSwap'
         self.patch_area = patch_area
         self.patch_aspect_ratio = patch_aspect_ratio
+        self.alpha = alpha
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-        self._check_arguments()
+        self._check_transform_args()
 		
 
-    def _check_arguments(self):
+    def _check_transform_args(self):
         """
-        Checks the arguments passed to `RandomCutSwap`
+        Checks that the arguments passed to the transform are valid
         """
-		
-        check_dataaug_function_arg(
+        check_argument(
             self.patch_area,
-            context={'arg_name': 'patch_area', 'function_name' : 'random_cutswap'},
+            context={'arg_name': 'patch_area', 'caller_name' : self.transform_name},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-
-        check_dataaug_function_arg(
+        check_argument(
             self.patch_aspect_ratio,
-            context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutswap'},
+            context={'arg_name': 'patch_aspect_ratio', 'caller_name' : self.transform_name},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
         )
-
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutSwap')
+        check_argument(
+            self.alpha,
+            context={'arg_name': 'alpha', 'caller_name' : self.transform_name},
+            constraints={'min_val': ('>', 0)}
+        )
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
@@ -111,7 +116,7 @@ class RandomCutSwap(v2.Transform):
             images = images.unsqueeze(1)
 
         # ---- Sample patches
-        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio)
+        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
 
         # Sample first patches and generate mask
         corners_1 = sample_patch_locations(images, patch_dims)

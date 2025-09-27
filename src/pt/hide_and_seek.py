@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_dataaug_function_arg, check_fill_method_arg, check_pixels_range_args, check_augment_mix_args
+from argument_utils import check_argument, check_fill_method_arg, check_pixels_range_args, check_augment_mix_args
 from dataaug_utils import rescale_pixel_values, mix_augmented_images
 
 
@@ -92,6 +92,7 @@ class RandomHideAndSeek(v2.Transform):
     ):
         super().__init__()
 
+        self.transform_name = 'RandomHideAndSeek'
         self.grid_size = grid_size
         self.erased_patches = erased_patches
         self.fill_method = fill_method
@@ -99,29 +100,27 @@ class RandomHideAndSeek(v2.Transform):
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-        self._check_arguments()
+        self._check_transform_args()
 
 
-    def _check_arguments(self):
+    def _check_transform_args(self):
         """
-        Checks the arguments passed to `RandomHideAndSeek`
+        Checks that the arguments passed to the transform are valid
         """
 
-        check_dataaug_function_arg(
+        check_argument(
             self.grid_size,
-            context={'arg_name': 'grid_size', 'function_name' : 'random_hide_and_seek'},
+            context={'arg_name': 'grid_size', 'caller_name' : self.transform_name},
             constraints={'format': 'tuple', 'tuple_ordering': 'None', 'data_type': 'int', 'min_val': ('>', 0)}
         )
-
-        check_dataaug_function_arg(
+        check_argument(
             self.erased_patches,
-            context={'arg_name': 'erased_patches', 'function_name' : 'random_hide_and_seek'},
+            context={'arg_name': 'erased_patches', 'caller_name' : self.transform_name},
             constraints={'format': 'tuple', 'data_type': 'int', 'min_val': ('>=', 0)}
         )
-
-        check_fill_method_arg(self.fill_method, 'RandomHideAndSeek')
-        check_pixels_range_args(self.pixels_range, 'RandomHideAndSeek')
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, RandomHideAndSeek)
+        check_fill_method_arg(self.fill_method, self.transform_name)
+        check_pixels_range_args(self.pixels_range, self.transform_name)
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 
     def _gen_patch_mask(self, images, erased_patches, grid_size):

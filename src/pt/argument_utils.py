@@ -2,16 +2,15 @@
 # Licensed under the MIT License. See LICENSE file for details.
 
 
-def check_dataaug_function_arg(
+def check_argument(
     arg: int | float | tuple | list,
     context: dict,
     constraints: dict | None = None
 ) -> None:
 
     """
-    Checks that an argument passed to a data augmentation function 
-    meets specific constraints. Value errors are raised if the argument
-    does not meet them.
+    Checks that an argument passed to a transform meets specific constraints.
+    Value errors are raised if the argument does not meet them.
 
     Arguments:
     ---------
@@ -21,9 +20,10 @@ def check_dataaug_function_arg(
         context:
             A dictionary providing context information for error messages.
             Must contain:
-            - 'arg_name': a string, the name of the argument being validated
-            - 'function_name': a string, the name of the calling function
-              containing the argument
+            - 'arg_name': a string, the name of the transform the argument
+               was passed to.
+            - 'caller_name': a string, the name of the calling function
+              that passed the argument.
 
         constraints:
             A dictionary specifying the constraints to verify with the
@@ -68,7 +68,7 @@ def check_dataaug_function_arg(
     >>> # Validate a single integer or float in the interval [0, 1]
     >>> check_dataaug_argument(
     ...     0.5,
-    ...     context={'arg_name': 'augmentation_ratio', 'function_name': 'cutout'},
+    ...     context={'arg_name': 'augmentation_ratio', 'caller_name': 'cutout'},
     ...     constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
     ... )
 
@@ -76,14 +76,14 @@ def check_dataaug_function_arg(
     >>> # 2nd tuple value greater than the 1st one
     >>> check_dataaug_argument(
     ...     (0.3, 0.7),
-    ...     context={'area_ratio_range': 'arg', 'function_name': 'random_erasing'},
+    ...     context={'area_ratio_range': 'arg', 'caller_name': 'random_erasing'},
     ...     constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
     ... )
 
     >>> # Validate a tuple of 2 integers greater than 0, no tuple ordering constraint
     >>> check_dataaug_argument(
     ...     (8, 8),
-    ...     context={'arg_name': 'grid_size', 'function_name': 'hide_and_seek'},
+    ...     context={'arg_name': 'grid_size', 'caller_name': 'hide_and_seek'},
     ...     constraints={'format': 'tuple', 'tuple_ordering': 'None', 'data_type: 'int', min_val': ('>', 0)}
     ... )
 
@@ -177,7 +177,7 @@ def check_dataaug_function_arg(
     data_type = constraints.setdefault('data_type', 'int_or_float')
 
     # Context message to include in error messages
-    context_msg = f"\nArgument `{context['arg_name']}` of function `{context['function_name']}`"
+    context_msg = f"\nArgument `{context['arg_name']}` of transform `{context['caller_name']}`"
 
     # Check format usage
     if format not in ('number', 'tuple', 'number_or_tuple'):
@@ -228,34 +228,34 @@ def check_dataaug_function_arg(
         check_value_constraint(arg, constraints['max_val'], 'max', context_msg)
 
 
-def check_pixels_range_args(arg, function_name):
-    check_dataaug_function_arg(
+def check_pixels_range_args(arg, caller_name):
+    check_argument(
         arg,
-        context={'arg_name': 'pixels_range', 'function_name': function_name},
+        context={'arg_name': 'pixels_range', 'caller_name': caller_name},
         constraints={'format': 'tuple'}
     )
 
 
-def check_augment_mix_args(ratio_arg, bernoulli_arg, function_name):
+def check_augment_mix_args(ratio_arg, bernoulli_arg, caller_name):
 
-    check_dataaug_function_arg(
+    check_argument(
         ratio_arg,
-            context={'arg_name': 'augmentation_ratio', 'function_name' : function_name},
+            context={'arg_name': 'augmentation_ratio', 'caller_name' : caller_name},
             constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
         )
 
     if not isinstance(bernoulli_arg, bool):
         raise ValueError(
-            f'Argument `bernoulli_mix` of function `{function_name}`: '
+            f'Argument `bernoulli_mix` of function `{caller_name}`: '
             f'expecting a boolean value\nReceived: {bernoulli_arg}'
             )
         
 
-def check_fill_method_arg(arg, function_name):
+def check_fill_method_arg(arg, caller_name):
     supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
     if arg not in supported_fill_methods:
         raise ValueError(
-            f'\nArgument `fill_method` of function `{function_name}`: '
+            f'\nArgument `fill_method` of function `{caller_name}`: '
             f'expecting one of {supported_fill_methods}\n'
             f'Received: {arg}'
         )

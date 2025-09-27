@@ -1,10 +1,12 @@
 
+
+import math
 import torch
 import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_dataaug_function_arg, check_augment_mix_args
+from argument_utils import check_argument, check_augment_mix_args
 from dataaug_utils import sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
@@ -75,22 +77,22 @@ class RandomCutThumbnail(v2.Transform):
     ):
         super().__init__()
 
+        self.transform_name = 'RandomCutThumbnail'
         self.thumbnail_area = thumbnail_area
         self.resize_method = resize_method
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-        self._check_arguments()
+        self._check_transform_args()
 
 
-    def _check_arguments(self):
+    def _check_transform_args(self):
         """
-        Checks the arguments passed to `RandomCutThumbnail`
+        Checks that the arguments passed to the transform are valid
         """
-
-        check_dataaug_function_arg(
+        check_argument(
             self.thumbnail_area,
-            context={'arg_name': 'thumbnail_area', 'function_name' : 'random_cut_thumbnail'},
+            context={'arg_name': 'thumbnail_area', 'caller_name' : self.transform_name},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
 
@@ -103,7 +105,7 @@ class RandomCutThumbnail(v2.Transform):
                 f'Received: {self.resize_method}'
             )
         
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutThumbnail')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 
     def _calculate_thumbnail_size(self, image_size, thumbnail_area):
@@ -126,7 +128,7 @@ class RandomCutThumbnail(v2.Transform):
         area = thumbnail_area * img_height * img_width
         aspect_ratio = img_height / img_width
 
-        thumb_w = (area / aspect_ratio) ** 0.5
+        thumb_w = math.sqrt(area / aspect_ratio)
         thumb_h = thumb_w * aspect_ratio
 
         # Round and convert to int

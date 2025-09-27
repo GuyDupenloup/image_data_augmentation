@@ -82,6 +82,7 @@ def _augment_images(images, labels, function):
         erasing = RandomErasing(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
+            alpha=1.0,
             fill_method='noise',
             pixels_range=(0, 1),
             augmentation_ratio=1.0,
@@ -150,8 +151,9 @@ def _augment_images(images, labels, function):
 
     elif function == "RandomCutMix":
         cutmix = RandomCutMix(
-            alpha=1.0,
+            patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
+            alpha=1.0,
             augmentation_ratio=1.0,
             bernoulli_mix=False
         )

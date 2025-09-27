@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_dataaug_function_arg, check_fill_method_arg, check_pixels_range_args, check_augment_mix_args
+from argument_utils import check_argument, check_fill_method_arg, check_pixels_range_args, check_augment_mix_args
 from dataaug_utils import rescale_pixel_values, gen_patch_contents, mix_augmented_images
 
 
@@ -100,6 +100,7 @@ class RandomGridMask(v2.Transform):
         
         super().__init__()
 
+        self.transform_name = 'RandomErasing'
         self.unit_length = unit_length
         self.masked_ratio = masked_ratio
         self.fill_method = fill_method
@@ -108,28 +109,28 @@ class RandomGridMask(v2.Transform):
         self.bernoulli_mix = bernoulli_mix
 
         # Check that all arguments are valid
-        self._check_arguments()
+        self._check_transform_args()
 
 
-    def _check_arguments(self):
+    def _check_transform_args(self):
         """
-        Checks the arguments passed to `RandomGridMask`
+        Checks that the arguments passed to the transform are valid
         """
 		
-        check_dataaug_function_arg(
+        check_argument(
             self.unit_length,
-            context={'arg_name': 'unit_length', 'function_name' : 'random_grid_mask'},
+            context={'arg_name': 'unit_length', 'caller_name' : self.transform_name},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-        check_dataaug_function_arg(
+        check_argument(
             self.masked_ratio,
-            context={'arg_name': 'masked_ratio', 'function_name' : 'random_grid_mask'},
+            context={'arg_name': 'masked_ratio', 'caller_name' : self.transform_name},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
 
         check_fill_method_arg(self.fill_method, 'RandomGridMask')
         check_pixels_range_args(self.pixels_range, 'RandomGridMask')
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomGridMask')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 
     def _generate_grid_mask(self, images, unit_length, masked_ratio):
