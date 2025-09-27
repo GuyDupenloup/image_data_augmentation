@@ -4,10 +4,11 @@
 import tensorflow as tf
 
 
-def sample_patch_dims(
+def sample_patch_sizes(
     images: tf.Tensor,
     patch_area: tuple[float, float],
-    patch_aspect_ratio: tuple[float, float]
+    patch_aspect_ratio: tuple[float, float],
+    alpha: float
 ) -> tf.Tensor:
     """
     Samples heights and widths of patches
@@ -32,10 +33,25 @@ def sample_patch_dims(
 
     image_shape = tf.shape(images)
     batch_size, img_height, img_width = tf.unstack(image_shape[:3])
-    
-    # Sample patch areas and aspect ratios
-    area_fraction = tf.random.uniform([batch_size], minval=patch_area[0], maxval=patch_area[1], dtype=tf.float32)
-    aspect_ratio = tf.random.uniform([batch_size], minval=patch_aspect_ratio[0], maxval=patch_aspect_ratio[1], dtype=tf.float32)
+
+    if isinstance(patch_area, (tuple, list)):
+        # Sample area fractions from Beta distribution
+        batch_size = image_shape[0]
+        gamma1 = tf.random.gamma([batch_size], alpha, dtype=tf.float32)
+        gamma2 = tf.random.gamma([batch_size], alpha, dtype=tf.float32)
+        lambda_vals = gamma1 / (gamma1 + gamma2)
+        # Linearly rescale to the specified area range (this does not change the distribution)
+        area_fraction = patch_area[0] + lambda_vals * (patch_area[1] - patch_area[0])
+    else:
+        # Constant area fraction
+        area_fraction = tf.fill([batch_size], patch_area)
+
+    if isinstance(patch_aspect_ratio, (tuple, list)):
+        # Sample aspect ratios from uniform distribution
+        aspect_ratio = tf.random.uniform([batch_size], minval=patch_aspect_ratio[0], maxval=patch_aspect_ratio[1], dtype=tf.float32)
+    else:
+        # Constant aspect ratio
+        aspect_ratio = tf.fill([batch_size], patch_aspect_ratio)
 
     # Calculate width and height of patches
     area = area_fraction  * tf.cast(img_width, tf.float32) * tf.cast(img_height, tf.float32)

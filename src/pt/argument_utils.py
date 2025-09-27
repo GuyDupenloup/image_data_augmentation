@@ -235,22 +235,36 @@ def check_pixels_range_args(arg, caller_name):
         constraints={'format': 'tuple'}
     )
 
-
 def check_augment_mix_args(ratio_arg, bernoulli_arg, caller_name):
-
     check_argument(
         ratio_arg,
             context={'arg_name': 'augmentation_ratio', 'caller_name' : caller_name},
             constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
         )
-
     if not isinstance(bernoulli_arg, bool):
         raise ValueError(
             f'Argument `bernoulli_mix` of function `{caller_name}`: '
             f'expecting a boolean value\nReceived: {bernoulli_arg}'
             )
         
+def check_patch_sampling_args(patch_area, patch_aspect_ratio, alpha, caller_name):
+    check_argument(
+        patch_area,
+        context={'arg_name': 'patch_area', 'caller_name': caller_name},
+        constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
+    )
 
+    check_argument(
+        patch_aspect_ratio,
+        context={'arg_name': 'patch_aspect_ratio', 'caller_name': caller_name},
+        constraints={'format': 'tuple', 'min_val': ('>', 0)}
+    )
+    check_argument(
+        alpha,
+        context={'arg_name': 'alpha', 'caller_name': caller_name},
+        constraints={'min_val': ('>', 0)}
+    )
+  
 def check_fill_method_arg(arg, caller_name):
     supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
     if arg not in supported_fill_methods:

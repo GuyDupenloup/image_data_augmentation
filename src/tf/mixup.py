@@ -3,7 +3,7 @@
 
 import tensorflow as tf
 
-from argument_utils import check_dataaug_function_arg, check_augment_mix_args
+from argument_utils import check_argument, check_augment_mix_args
 from dataaug_utils import mix_augmented_images
 
 
@@ -11,14 +11,13 @@ def _check_random_mixup_args(alpha, augmentation_ratio, bernoulli_mix):
     """
     Checks the arguments passed to the `random_mixup` function
     """
-
-    check_dataaug_function_arg(
+    function_name = 'random_mixup'
+    check_argument(
         alpha,
-        context={'arg_name': 'alpha', 'function_name' : 'random_mixup'},
+        context={'arg_name': 'alpha', 'caller_name': function_name},
         constraints={'format': 'number'}
     )
-
-    check_augment_mix_args(augmentation_ratio, bernoulli_mix, 'random_mixup')
+    check_augment_mix_args(augmentation_ratio, bernoulli_mix, function_name)
 
 
 @tf.function
@@ -115,11 +114,11 @@ def random_mixup(
     images_aug = lambda_vals * images + (1 - lambda_vals) * shuffled_images
 
     # Weigh the labels
-    lambda_vals = tf.reshape(lambda_vals, [batch_size, 1])
+    lambda_vals =lambda_vals[:, None]   # For broadcasting
     labels = tf.cast(labels, tf.float32)
     labels_aug = lambda_vals * labels + (1.0 - lambda_vals) * shuffled_labels
 
-    # Mix the original/augmented images and labels
+    # Mix original/augmented images and labels
     output_images, augment_mask = mix_augmented_images(images, images_aug, augmentation_ratio, bernoulli_mix)
     output_labels = tf.where(augment_mask[:, None], labels_aug, labels)
 

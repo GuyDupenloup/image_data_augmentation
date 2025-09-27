@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 from argument_utils import (
-	check_dataaug_function_arg, check_fill_method_arg,
+	check_argument, check_fill_method_arg,
 	check_pixels_range_args, check_augment_mix_args
 )
 from dataaug_utils import rescale_pixel_values, gen_patch_contents, mix_augmented_images
@@ -102,6 +102,7 @@ class RandomGridMask(tf.keras.Layer):
 
         super().__init__(**kwargs)
 
+        self.layer_name = 'RandomGridMask'
         self.unit_length = unit_length
         self.masked_ratio = masked_ratio
         self.fill_method = fill_method
@@ -109,28 +110,28 @@ class RandomGridMask(tf.keras.Layer):
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-        self._check_arguments()
+        self._check_layer_args()
 
 
-    def _check_arguments(self):
+    def _check_layer_args(self):
         """
         Checks the arguments passed to the `hide_and_seek` function
         """
 
-        check_dataaug_function_arg(
+        check_argument(
             self.unit_length,
-            context={'arg_name': 'unit_length', 'function_name' : 'random_grid_mask'},
+            context={'arg_name': 'unit_length', 'caller_name': self.layer_name},
             constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-        check_dataaug_function_arg(
+        check_argument(
             self.masked_ratio,
-            context={'arg_name': 'masked_ratio', 'function_name' : 'random_grid_mask'},
+            context={'arg_name': 'masked_ratio', 'caller_name': self.layer_name},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
 
-        check_fill_method_arg(self.fill_method, 'RandomGridMask')
-        check_pixels_range_args(self.pixels_range, 'RandomGridMask')
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomGridMask')
+        check_fill_method_arg(self.fill_method, self.layer_name)
+        check_pixels_range_args(self.pixels_range, self.layer_name)
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.layer_name)
 
 
     def _generate_grid_mask(self, images):
@@ -217,7 +218,7 @@ class RandomGridMask(tf.keras.Layer):
         # Erase unit masked areas from the images and fill them
         images_aug = tf.where(mask[:, :, :, None], unit_contents, images)
 
-        # Mix the original and augmented images
+        # Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
 
         # Restore shape, data type and pixels range of input images
@@ -230,12 +231,13 @@ class RandomGridMask(tf.keras.Layer):
     def get_config(self):
         base_config = super().get_config()
         config = {
-             'unit_length': self.unit_length,
-             'masked_ratio': self.masked_ratio,
-             'fill_method': self.fill_method,
-             'pixels_range': self.pixels_range,
-             'augmentation_ratio': self.augmentation_ratio,
-             'bernoulli_mix': self.bernoulli_mix
+            'layer_name': self.layer_name,
+            'unit_length': self.unit_length,
+            'masked_ratio': self.masked_ratio,
+            'fill_method': self.fill_method,
+            'pixels_range': self.pixels_range,
+            'augmentation_ratio': self.augmentation_ratio,
+            'bernoulli_mix': self.bernoulli_mix
         }
         base_config.update(config)
         return base_config

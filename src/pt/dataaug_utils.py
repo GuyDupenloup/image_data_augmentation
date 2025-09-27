@@ -4,7 +4,7 @@ from torchvision.transforms import v2
 from typing import Tuple, Union
 
 
-def sample_patch_dims(
+def sample_patch_sizes(
     images: torch.Tensor,
     patch_area: tuple[float, float],
     patch_aspect_ratio: tuple[float, float],

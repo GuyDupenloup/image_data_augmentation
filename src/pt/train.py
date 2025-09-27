@@ -64,6 +64,7 @@ def augment_data(images, labels, pixels_range):
     images = RandomErasing(
         patch_area=(0.05, 0.3),
         patch_aspect_ratio=(0.3, 3.0),
+        alpha=1.0,
         fill_method='black',
         pixels_range=pixels_range,
         augmentation_ratio=0.1,
@@ -91,6 +92,7 @@ def augment_data(images, labels, pixels_range):
     images = RandomCutBlur(
         patch_area=(0.2, 0.4),
         patch_aspect_ratio=(0.3, 0.4),
+        alpha=1.0,
         blur_factor=0.2,
         augmentation_ratio=0.1,
         bernoulli_mix=False
@@ -99,6 +101,7 @@ def augment_data(images, labels, pixels_range):
     images = RandomCutPaste(
         patch_area=(0.1, 0.3),
         patch_aspect_ratio=(0.3, 2.0),
+        alpha=1.0,
         augmentation_ratio=0.1,
         bernoulli_mix=False
     )(images)
@@ -106,6 +109,7 @@ def augment_data(images, labels, pixels_range):
     images = RandomCutSwap(
         patch_area=(0.1, 0.3),
         patch_aspect_ratio=(0.3, 2.0),
+        alpha=1.0,
         augmentation_ratio=0.1,
         bernoulli_mix=False
     )(images)
@@ -117,8 +121,9 @@ def augment_data(images, labels, pixels_range):
     )(images)
 
     images, labels = RandomCutMix(
-        alpha=1.0,
+        patch_area=(0.05, 0.3),
         patch_aspect_ratio=(0.3, 3.0),
+        alpha=1.0,
         augmentation_ratio=1.0,
         bernoulli_mix=False
     )((images, labels))

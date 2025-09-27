@@ -68,6 +68,7 @@ def _augment_images(images, labels, function):
         erasing = RandomErasing(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
+            alpha=1.0,
             fill_method='black'
         )
         images_aug = erasing(images)
@@ -92,6 +93,7 @@ def _augment_images(images, labels, function):
         cutblur = RandomCutBlur(
             patch_area=(0.2, 0.4),
             patch_aspect_ratio=(0.3, 0.4),
+            alpha=1.0,
             blur_factor=0.2
         )
         images_aug = cutblur(images)
@@ -99,7 +101,9 @@ def _augment_images(images, labels, function):
     elif function == 'RandomCutPaste':
         cutpaste = RandomCutPaste(
             patch_area=(0.1, 0.3),
-            patch_aspect_ratio=(0.3, 2.0)
+            patch_aspect_ratio=(0.3, 2.0),
+            alpha=1.0,
+
         )
         images_aug = cutpaste(images)
 
@@ -107,6 +111,7 @@ def _augment_images(images, labels, function):
         cutsawp = RandomCutSwap(
             patch_area=(0.1, 0.3),
             patch_aspect_ratio=(0.3, 2.0)
+            alpha=1.0,
         )
         images_aug = cutsawp(images)
 

@@ -3,8 +3,11 @@
 
 import tensorflow as tf
 
-from argument_utils import check_dataaug_function_arg, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
-from dataaug_utils import rescale_pixel_values, sample_patch_locations, gen_patch_mask, gen_patch_contents, mix_augmented_images
+from argument_utils import check_argument, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
+from dataaug_utils import (
+    rescale_pixel_values, sample_patch_sizes, sample_patch_locations,
+    gen_patch_mask, gen_patch_contents, mix_augmented_images
+)
 
 
 class RandomCutout(tf.keras.Layer):
@@ -81,28 +84,29 @@ class RandomCutout(tf.keras.Layer):
 
         super().__init__(**kwargs)
 
+        self.layer_name = 'RandomCutout'
         self.patch_area = patch_area
         self.fill_method = fill_method
         self.pixels_range = pixels_range
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-        self._check_arguments()
+        self._check_layer_args()
 
 
-    def _check_arguments(self):
+    def _check_layer_args(self):
         """
         Checks the arguments passed to the `random_cutout` function
         """
 
-        check_dataaug_function_arg(
+        check_argument(
             self.patch_area,
-            context={'arg_name': 'patch_area', 'function_name' : 'random_cutout'},
+            context={'arg_name': 'patch_area', 'caller_name': self.layer_name},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-        check_fill_method_arg(self.fill_method, 'RandomCutout')
-        check_pixels_range_args(self.pixels_range, 'RandomCutout')
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutout')
+        check_fill_method_arg(self.fill_method, self.layer_name)
+        check_pixels_range_args(self.pixels_range, self.layer_name)
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.layer_name)
 
 
     def call(self, images, training=None):
@@ -114,24 +118,18 @@ class RandomCutout(tf.keras.Layer):
             images = tf.expand_dims(images, axis=-1)
 
         image_shape = tf.shape(images)
-        batch_size, img_height, img_width = tf.unstack(image_shape[:3])
+        img_height, img_width = tf.unstack(image_shape[1:3])
 
         # Save images data type and rescale pixel values to (0, 255)
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=tf.int32)
 
-        # Calculate the patch size
-        area = self.patch_area * tf.cast(img_height * img_width, tf.float32)
-        patch_size = tf.sqrt(area)
-        patch_size = tf.cast(tf.round(patch_size), tf.int32)
-        patch_size = tf.clip_by_value(patch_size, 0, img_height)
-        patch_size = tf.clip_by_value(patch_size, 0, img_width)
+        # Calculate patch sizes (same for all images) and locations, 
+        # then generate a boolean mask (True inside patches, False outside)
+        patch_sizes = sample_patch_sizes(images, patch_area=self.patch_area, patch_aspect_ratio=1.0, alpha=1.0)
+        patch_corners = sample_patch_locations(images, patch_sizes)
 
-        # Sample patch locations and generate a boolean mask 
-        # with value True inside patches, False outside
-        batch_size = image_shape[0]
-        batched_patch_size = (tf.repeat(patch_size, batch_size), tf.repeat(patch_size, batch_size))
-        patch_corners = sample_patch_locations(images, batched_patch_size)
+        # Generate a boolean mask (True inside patches, False outside)
         patch_mask = gen_patch_mask(images, patch_corners)
 
         # Generate color contents of patches
@@ -140,7 +138,7 @@ class RandomCutout(tf.keras.Layer):
         # Erase the patches from the images and fill them
         images_aug = tf.where(patch_mask[:, :, :, None], patch_contents, images)
 
-        # Mix the original and augmented images
+        # Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
 
         # Restore shape, data type and pixels range of input images
@@ -153,6 +151,7 @@ class RandomCutout(tf.keras.Layer):
     def get_config(self):
         base_config = super().get_config()
         config = {
+            'layer_name': self.layer_name,
             'patch_area': self.patch_area,
             'fill_method': self.fill_method,
             'pixels_range': self.pixels_range,

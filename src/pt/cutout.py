@@ -9,7 +9,7 @@ from argument_utils import (
     check_argument, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
 )
 from dataaug_utils import (
-    sample_patch_dims, sample_patch_locations, gen_patch_mask, 
+    sample_patch_sizes, sample_patch_locations, gen_patch_mask, 
     gen_patch_contents, mix_augmented_images, rescale_pixel_values
 )
 
@@ -123,8 +123,9 @@ class RandomCutout(v2.Transform):
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
-        # Calculate patch size (same value in all images), then sample patch locations
-        patch_sizes = sample_patch_dims(images, patch_area=self.patch_area, patch_aspect_ratio=1.0, alpha=1.0)
+        # Calculate patch sizes (same in images, sample locations,  
+        # and generate a boolean mask (True inside patches, False outside)
+        patch_sizes = sample_patch_sizes(images, patch_area=self.patch_area, patch_aspect_ratio=1.0, alpha=1.0)
         patch_corners = sample_patch_locations(images, patch_sizes)
 
         # Generate boolean mask (True inside patches, False outside)

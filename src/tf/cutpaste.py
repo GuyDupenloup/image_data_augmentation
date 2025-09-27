@@ -3,8 +3,8 @@
 
 import tensorflow as tf
 
-from argument_utils import check_dataaug_function_arg, check_augment_mix_args
-from dataaug_utils import sample_patch_dims, sample_patch_locations, gen_patch_mask, mix_augmented_images
+from argument_utils import check_patch_sampling_args, check_augment_mix_args
+from dataaug_utils import sample_patch_sizes, sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutPaste(tf.keras.Layer):
@@ -37,13 +37,20 @@ class RandomCutPaste(tf.keras.Layer):
                 [B, H, W,]    --> Grayscale images
 
         patch_area:
-            A tuple of two floats specifying the range from which patch areas
+            A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
+            Patch areas are sampled from a Beta distribution. See `alpha` argument.
 
         patch_aspect_ratio:
-            A tuple of two floats specifying the range from which the height/width 
-            aspect ratios of patches are sampled from. Values must be > 0.
+            A tuple of two floats specifying the range from which patch height/width
+            aspect ratios are sampled. Minimum value must be > 0.
+            Patch aspect ratios are sampled from a uniform distribution.
+
+        alpha:
+            A float specifying the alpha parameter of the Beta distribution used
+            to sample patch areas. Set to 0 by default, making the distribution
+            uniform.
 
         augmentation_ratio:
             A float in the interval [0, 1] specifying the augmented/original
@@ -67,37 +74,29 @@ class RandomCutPaste(tf.keras.Layer):
     def __init__(self,
         patch_area: tuple[float, float] = (0.05, 0.3),
         patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
+        alpha: float = 1.0,
         augmentation_ratio: float = 1.0,
         bernoulli_mix: bool = False,
         **kwargs):
 
         super().__init__(**kwargs)
 
+        self.layer_name = 'RandomCutPaste'
         self.patch_area = patch_area
         self.patch_aspect_ratio = patch_aspect_ratio
+        self.alpha = alpha
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-        self._check_arguments()
+        self._check_layer_args()
 
 
-    def _check_arguments(self):
+    def _check_layer_args(self):
         """
         Checks the arguments passed to the `random_cutpaste` function
         """
-
-        check_dataaug_function_arg(
-            self.patch_area,
-            context={'arg_name': 'patch_area', 'function_name' : 'random_cutpaste'},
-            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
-        )
-        check_dataaug_function_arg(
-            self.patch_aspect_ratio,
-            context={'arg_name': 'patch_aspect_ratio', 'function_name' : 'random_cutpaste'},
-            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
-        )
-
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutPaste')
+        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.alpha, self.layer_name)
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.layer_name)
 
 
     def call(self, images, training=None):
@@ -109,30 +108,30 @@ class RandomCutPaste(tf.keras.Layer):
             images = tf.expand_dims(images, axis=-1)
 
         # Sample patch sizes
-        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio)
+        patch_sizes = sample_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
 
         # Sample locations for the source patches and generate
-        # a boolean mask (True inside the patches, False outside)
-        source_corners = sample_patch_locations(images, patch_dims)
+        # a boolean mask (True inside patches, False outside)
+        source_corners = sample_patch_locations(images, patch_sizes)
         source_mask = gen_patch_mask(images, source_corners)
 
         # Sample locations for the target patches and generate
-        # a boolean mask (True inside the patches, False outside)
-        target_corners = sample_patch_locations(images, patch_dims)
+        # a boolean mask (True inside patches, False outside)
+        target_corners = sample_patch_locations(images, patch_sizes)
         target_mask = gen_patch_mask(images, target_corners)
 
-        # Gather the contents of the source patches
+        # Gather contents of source patches
         source_indices = tf.where(source_mask)
         source_contents = tf.gather_nd(images, source_indices)
 
-        # Update the contents of the target patches with the contents of the source patches
+        # Update contents of target patches with contents of source patches
         target_indices = tf.where(target_mask)
         images_aug = tf.tensor_scatter_nd_update(images, target_indices, source_contents)
 
-        # Mix the original and augmented images
+        # Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
 
-        # Restore input images shape
+        # Restore shape of input images
         output_images = tf.reshape(output_images, original_image_shape)
 
         return output_images
@@ -141,8 +140,10 @@ class RandomCutPaste(tf.keras.Layer):
     def get_config(self):
         base_config = super().get_config()
         config = {
+            'layer_name': self.layer_name,
             'patch_area': self.patch_area,
             'patch_aspect_ratio': self.patch_aspect_ratio,
+            'alpha': self.alpha,
             'augmentation_ratio': self.augmentation_ratio,
             'bernoulli_mix': self.bernoulli_mix
         }

@@ -200,23 +200,22 @@ class RandomCutThumbnail(v2.Transform):
         thumb_y = (y_rel_norm * (thumb_h - 1)).clamp(0, thumb_h - 1).long()
         thumb_x = (x_rel_norm * (thumb_w - 1)).clamp(0, thumb_w - 1).long()
 
-        # ---- Gather pixel values from thumbnails across channels
+        # Gather pixel values from thumbnails across channels
         num_pixels = patch_indices.shape[0]
         channel_idx = torch.arange(channels, device=device).view(1, channels).expand(num_pixels, channels)
         thumbnail_contents = thumbnails[batch_indices.view(-1, 1), channel_idx, thumb_y.view(-1, 1), thumb_x.view(-1, 1)]
         thumbnail_contents = thumbnail_contents.view(num_pixels, channels)
 
-        # ---- Paste thumbnails into images
+        # Paste thumbnails into images
         images_aug = images.clone()
         images_aug[batch_indices, :, pixel_y, pixel_x] = thumbnail_contents
 
-
-        # ---- Mix original and augmented images
+        # Mix original and augmented images
         output_images, _ = mix_augmented_images(
             images, images_aug, self.augmentation_ratio, self.bernoulli_mix
                 )
 
-        # ---- Restore original shape
+        # Restore shape of input images
         output_images = output_images.reshape(original_image_shape)
 
         return output_images

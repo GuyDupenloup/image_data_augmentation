@@ -4,10 +4,10 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_argument, check_fill_method_arg, check_pixels_range_args
+from argument_utils import check_patch_sampling_args, check_fill_method_arg, check_pixels_range_args
 from dataaug_utils import (
-    rescale_pixel_values, sample_patch_dims, sample_patch_locations,
-    gen_patch_mask, gen_patch_contents, mix_augmented_images
+    sample_patch_sizes, sample_patch_locations, gen_patch_mask, gen_patch_contents,
+    rescale_pixel_values, mix_augmented_images
 )
 
 
@@ -39,13 +39,20 @@ class RandomErasing(v2.Transform):
             the `pixels_range` argument.
 
         patch_area:
-            A tuple of two floats specifying the range from which patch areas
+            A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
+            Patch areas are sampled from a Beta distribution. See `alpha` argument.
 
         patch_aspect_ratio:
-            A tuple of two floats specifying the range from which the height/width 
-            aspect ratios of patches are sampled from. Values must be > 0.
+            A tuple of two floats specifying the range from which patch height/width
+            aspect ratios are sampled. Minimum value must be > 0.
+            Patch aspect ratios are sampled from a uniform distribution.
+
+        alpha:
+            A float specifying the alpha parameter of the Beta distribution used
+            to sample patch areas. Set to 0 by default, making the distribution
+            uniform.
 
         fill_method:
             A string specifying how to fill the erased patches.  
@@ -110,21 +117,7 @@ class RandomErasing(v2.Transform):
         """
         Checks that the arguments passed to the transform are valid
         """
-        check_argument(
-            self.patch_area,
-            context={'arg_name': 'patch_area', 'caller_name' : self.transform_name},
-            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
-        )
-        check_argument(
-            self.patch_aspect_ratio,
-            context={'arg_name': 'patch_aspect_ratio', 'caller_name' : self.transform_name},
-            constraints={'format': 'tuple', 'min_val': ('>', 0)}
-        )
-        check_argument(
-            self.alpha,
-            context={'arg_name': 'alpha', 'caller_name' : self.transform_name},
-            constraints={'min_val': ('>', 0)}
-        )
+        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.alpha, self.transform_name)
         check_fill_method_arg(self.fill_method, self.transform_name)
         check_fill_method_arg(self.fill_method, self.transform_name)
         check_pixels_range_args(self.pixels_range, self.transform_name)
@@ -139,11 +132,9 @@ class RandomErasing(v2.Transform):
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
-        # Sample patch heights and widths
-        patch_sizes = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
-
-        # Sample patch locations, then generate a boolean mask
-        # (True inside patches, False outside)
+        # Sample patch sizes and locations, then generate 
+        # a boolean mask (True inside patches, False outside)
+        patch_sizes = sample_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
         patch_corners = sample_patch_locations(images, patch_sizes)
         patch_mask = gen_patch_mask(images, patch_corners)
 

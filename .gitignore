@@ -1,4 +1,5 @@
 __pycache__/
+ __init__.py
 src/pt/data
 src/tf/model.h5
 src/tf/augmented_model.weights.h5

@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_argument, check_augment_mix_args
-from dataaug_utils import sample_patch_dims, sample_patch_locations, gen_patch_mask, mix_augmented_images
+from argument_utils import check_patch_sampling_args, check_argument, check_augment_mix_args
+from dataaug_utils import sample_patch_sizes, sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutBlur(v2.Transform):
@@ -41,10 +41,17 @@ class RandomCutBlur(v2.Transform):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
+            Patch areas are sampled from a Beta distribution. See `alpha` argument.
 
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
-            aspect ratios are sampled. Values must be > 0.
+            aspect ratios are sampled. Minimum value must be > 0.
+            Patch aspect ratios are sampled from a uniform distribution.
+
+        alpha:
+            A float specifying the alpha parameter of the Beta distribution used
+            to sample patch areas. Set to 0 by default, making the distribution
+            uniform.
 
         blur_factor:
             A float specifying the size of the low-resolution images (they all 
@@ -97,28 +104,12 @@ class RandomCutBlur(v2.Transform):
         """
         Checks that the arguments passed to the transform are valid
         """
-
-        check_argument(
-            self.patch_area,
-            context={'arg_name': 'patch_area', 'caller_name' : self.transform_name},
-            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
-        )
-        check_argument(
-            self.patch_aspect_ratio,
-            context={'arg_name': 'patch_aspect_ratio', 'caller_name' : self.transform_name},
-            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
-        )
-        check_argument(
-            self.alpha,
-            context={'arg_name': 'alpha', 'caller_name' : self.transform_name},
-            constraints={'min_val': ('>', 0)}
-        )
+        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.alpha, self.transform_name)
         check_argument(
             self.blur_factor,
             context={'arg_name': 'blur_factor', 'caller_name' : self.transform_name},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 
@@ -147,11 +138,9 @@ class RandomCutBlur(v2.Transform):
         # Match dtype
         low_res_images = low_res_images.to(images.dtype)
 
-        # Sample patch heights and widths
-        patch_sizes= sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
-
-        # Sample patch locations, then generate a boolean mask
-        # (True inside patches, False outside)
+        # Sample patch sizes and locations, then generate 
+        # a boolean mask (True inside patches, False outside)
+        patch_sizes= sample_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
         patch_corners = sample_patch_locations(images, patch_sizes)
         patch_mask = gen_patch_mask(images, patch_corners)
 
@@ -161,7 +150,7 @@ class RandomCutBlur(v2.Transform):
         # Mix the original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
 
-        # Restore input images shape
+        # Restore shape of input images
         output_images = output_images.reshape(original_image_shape)
 
         return output_images

@@ -131,11 +131,11 @@ class RandomMixup(v2.Transform):
         labels = labels.to(torch.float32)
         labels_aug = lambda_vals * labels + (1.0 - lambda_vals) * shuffled_labels
 
-        # Mix the original and augmented images/labels
+        # Mix original/augmented images and labels
         output_images, augment_mask = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
         output_labels = torch.where(augment_mask[:, None], labels_aug, labels)
 
-        # Restore original image shape
+        # Restore shape of input images
         output_images = output_images.reshape(original_shape)
 
         return output_images, output_labels

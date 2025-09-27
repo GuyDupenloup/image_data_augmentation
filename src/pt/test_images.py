@@ -116,6 +116,7 @@ def _augment_images(images, labels, function):
         cutblur = RandomCutBlur(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
+            alpha=1.0,
             blur_factor=0.1,
             augmentation_ratio=1.0,
             bernoulli_mix=False
@@ -126,6 +127,7 @@ def _augment_images(images, labels, function):
         cutpaste = RandomCutPaste(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
+            alpha=1.0,
             augmentation_ratio=1.0,
             bernoulli_mix=False
         )
@@ -135,6 +137,7 @@ def _augment_images(images, labels, function):
         cutswap = RandomCutSwap(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
+            alpha=1.0,
             augmentation_ratio=1.0,
             bernoulli_mix=False
         )

@@ -3,7 +3,7 @@
 
 import tensorflow as tf
 
-from argument_utils import check_dataaug_function_arg, check_fill_method_arg, check_pixels_range_args, check_augment_mix_args
+from argument_utils import check_argument, check_fill_method_arg, check_pixels_range_args, check_augment_mix_args
 from dataaug_utils import rescale_pixel_values, mix_augmented_images
 
 
@@ -92,6 +92,7 @@ class RandomHideAndSeek(tf.keras.Layer):
 
         super().__init__(**kwargs)
 
+        self.layer_name = 'RandomHideAndSeek'
         self.grid_size = grid_size
         self.erased_patches = erased_patches
         self.fill_method = fill_method
@@ -99,29 +100,29 @@ class RandomHideAndSeek(tf.keras.Layer):
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-        self._check_arguments()
+        self._check_layer_args()
 
 
-    def _check_arguments(self):
+    def _check_layer_args(self):
         """
         Checks the arguments passed to the `random_hide_and_seek` function
         """
 
-        check_dataaug_function_arg(
+        check_argument(
             self.grid_size,
-            context={'arg_name': 'grid_size', 'function_name' : 'random_hide_and_seek'},
+            context={'arg_name': 'grid_size', 'caller_name': self.layer_name},
             constraints={'format': 'tuple', 'tuple_ordering': 'None', 'data_type': 'int', 'min_val': ('>', 0)}
         )
 
-        check_dataaug_function_arg(
+        check_argument(
             self.erased_patches,
-            context={'arg_name': 'erased_patches', 'function_name' : 'random_hide_and_seek'},
+            context={'arg_name': 'erased_patches', 'caller_name': self.layer_name},
             constraints={'format': 'tuple', 'data_type': 'int', 'min_val': ('>=', 0)}
         )
 
-        check_fill_method_arg(self.fill_method, 'RandomHideAndSeek')
-        check_pixels_range_args(self.pixels_range, 'RandomHideAndSeek')
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, RandomHideAndSeek)
+        check_fill_method_arg(self.fill_method, self.layer_name)
+        check_pixels_range_args(self.pixels_range, self.layer_name)
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.layer_name)
 
 
     def _gen_patch_mask(self, images):
@@ -231,7 +232,7 @@ class RandomHideAndSeek(tf.keras.Layer):
         # Erase the patches from the images and fill them
         images_aug = tf.where(patch_mask[:, :, :, None], patch_contents, images)
 
-        # Mix the original and augmented images
+        # Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
 
         # Restore shape, data type and pixels range of input images
@@ -244,12 +245,13 @@ class RandomHideAndSeek(tf.keras.Layer):
     def get_config(self):
         base_config = super().get_config()
         config = {
-            "grid_size": self.grid_size,
-            "erased_patches": self.erased_patches,
-            "fill_method": self.fill_method,
-            "pixels_range": self.pixels_range,
-            "augmentation_ratio": self.augmentation_ratio,
-            "bernoulli_mix": self.bernoulli_mix
+            'layer_name': self.layer_name,
+            'grid_size': self.grid_size,
+            'erased_patches': self.erased_patches,
+            'fill_method': self.fill_method,
+            'pixels_range': self.pixels_range,
+            'augmentation_ratio': self.augmentation_ratio,
+            'bernoulli_mix': self.bernoulli_mix
         }
         base_config.update(config)
         return base_config

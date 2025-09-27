@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_argument, check_augment_mix_args
-from dataaug_utils import sample_patch_dims, sample_patch_locations, gen_patch_mask, mix_augmented_images
+from argument_utils import check_patch_sampling_args, check_augment_mix_args
+from dataaug_utils import sample_patch_sizes, sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutPaste(v2.Transform):
@@ -38,13 +38,20 @@ class RandomCutPaste(v2.Transform):
                 [B, H, W,]    --> Grayscale images
 
         patch_area:
-            A tuple of two floats specifying the range from which patch areas
+            A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
+            Patch areas are sampled from a Beta distribution. See `alpha` argument.
 
         patch_aspect_ratio:
-            A tuple of two floats specifying the range from which the height/width 
-            aspect ratios of patches are sampled from. Values must be > 0.
+            A tuple of two floats specifying the range from which patch height/width
+            aspect ratios are sampled. Minimum value must be > 0.
+            Patch aspect ratios are sampled from a uniform distribution.
+
+        alpha:
+            A float specifying the alpha parameter of the Beta distribution used
+            to sample patch areas. Set to 0 by default, making the distribution
+            uniform.
 
         augmentation_ratio:
             A float in the interval [0, 1] specifying the augmented/original
@@ -89,23 +96,7 @@ class RandomCutPaste(v2.Transform):
         """
         Checks that the arguments passed to the transform are valid
         """
-        
-        check_argument(
-            self.patch_area,
-            context={'arg_name': 'patch_area', 'caller_name' : self.transform_name},
-            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
-        )
-        check_argument(
-            self.patch_aspect_ratio,
-            context={'arg_name': 'patch_aspect_ratio', 'caller_name' : self.transform_name},
-            constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
-        )
-        check_argument(
-            self.alpha,
-            context={'arg_name': 'patch_aspect_ratio', 'caller_name' : self.transform_name},
-            constraints={'min_val': ('>', 0)}
-        )
-
+        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.alpha, self.transform_name)
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 
@@ -119,34 +110,38 @@ class RandomCutPaste(v2.Transform):
         if images.ndim == 3:
             images = images.unsqueeze(1)  # [B,1,H,W]
 
-        # ---- Sample patches and masks
-        patch_dims = sample_patch_dims(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        # Sample patches sizes
+        patch_sizes = sample_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
 
-        source_corners = sample_patch_locations(images, patch_dims)
+        # Sample locations of the source patches, then generate
+        # a boolean mask (True inside patches, False outside)
+        source_corners = sample_patch_locations(images, patch_sizes)
         source_mask = gen_patch_mask(images, source_corners)
-        source_mask = source_mask.unsqueeze(1).to(device)
+        source_mask = source_mask.unsqueeze(1).to(device)    # Add channel dim
 
-        target_corners = sample_patch_locations(images, patch_dims)
+        # Sample locations of the target patches, then generate
+        # a boolean mask (True inside patches, False outside)
+        target_corners = sample_patch_locations(images, patch_sizes)
         target_mask = gen_patch_mask(images, target_corners)
-        target_mask = target_mask.unsqueeze(1).to(device)
+        target_mask = target_mask.unsqueeze(1).to(device)    # Add channel dim
 
-        # ---- Gather source patch contents (all channels)
+        # Gather source patch contents (all channels)
         # use mask.nonzero so indices are on the same device as the mask
-        source_indices = source_mask.nonzero(as_tuple=False)  # [num_pixels, 4]
+        source_indices = source_mask.nonzero(as_tuple=False)
         source_contents = images[source_indices[:, 0], :,  # all channels
                                 source_indices[:, 2], source_indices[:, 3]]  # [num_pixels, C]
 
-        # ---- Scatter into target patches (all channels)
+        # Scatter into target patches (all channels)
         target_indices = target_mask.nonzero(as_tuple=False)
         images_aug = images.clone()
         images_aug[target_indices[:, 0], :,  # all channels
                 target_indices[:, 2], target_indices[:, 3]] = source_contents
 
-        # ---- Mix original and augmented images
+        # Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
         output_images = output_images.to(device)  # ensure result on same device
 
-        # ---- Restore original shape
+        # Restore shape of input images
         output_images = output_images.reshape(original_image_shape)
 
         return output_images

@@ -39,6 +39,7 @@ class CustomModel(tf.keras.Model):
         self.random_erasing = RandomErasing(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
+            alpha=1.0,
             fill_method='black',
             augmentation_ratio=0.1,
             bernoulli_mix=False
@@ -60,6 +61,7 @@ class CustomModel(tf.keras.Model):
         self.random_cutblur = RandomCutBlur(
             patch_area=(0.2, 0.4),
             patch_aspect_ratio=(0.3, 0.4),
+            alpha=1.0,
             blur_factor=0.2,
             augmentation_ratio=0.1,
             bernoulli_mix=False
@@ -67,12 +69,14 @@ class CustomModel(tf.keras.Model):
         self.random_cutpaste = RandomCutPaste(
             patch_area=(0.1, 0.3),
             patch_aspect_ratio=(0.3, 2.0),
+            alpha=1.0,
             augmentation_ratio=0.1,
             bernoulli_mix=False
         )
         self.random_cutswap = RandomCutSwap(
             patch_area=(0.1, 0.3),
             patch_aspect_ratio=(0.3, 2.0),
+            alpha=1.0,
             augmentation_ratio=0.1,
             bernoulli_mix=False
         )

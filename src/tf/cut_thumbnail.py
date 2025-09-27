@@ -3,7 +3,7 @@
 
 import tensorflow as tf
 
-from argument_utils import check_dataaug_function_arg, check_augment_mix_args
+from argument_utils import check_argument, check_augment_mix_args
 from dataaug_utils import sample_patch_locations, gen_patch_mask, mix_augmented_images
 
 
@@ -74,22 +74,22 @@ class RandomCutThumbnail(tf.keras.Layer):
 
         super().__init__(**kwargs)
 
+        self.layer_name = 'RandomCutThumbnail'
         self.thumbnail_area = thumbnail_area
         self.resize_method = resize_method
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
-        self._check_arguments()
+        self._check_layer_args()
 
 
-    def _check_arguments(self):
+    def _check_layer_args(self):
         """
         Checks the arguments passed to the `random_cut_thumbnail` function
         """
-
-        check_dataaug_function_arg(
+        check_argument(
             self.thumbnail_area,
-            context={'arg_name': 'thumbnail_area', 'function_name' : 'random_cut_thumbnail'},
+            context={'arg_name': 'thumbnail_area', 'caller_name': self.layer_name},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
 
@@ -97,12 +97,12 @@ class RandomCutThumbnail(tf.keras.Layer):
             'bilinear', 'lanczos3', 'lanczos5', 'bicubic', 'gaussian', 'nearest', 'area', 'mitchellcubic')
         if self.resize_method not in supported_resize_methods:
             raise ValueError(
-                '\nArgument `resize_method` of function `random_cut_thumbnail`: '
+                f'\nArgument `resize_method` of layer {self.layer_name}: '
                 f'expecting one of {supported_resize_methods}\n'
                 f'Received: {self.resize_method}'
             )
         
-        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, 'RandomCutThumbnail')
+        check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.layer_name)
 
 
     def _calculate_thumbnail_size(self, image_size):
@@ -169,10 +169,10 @@ class RandomCutThumbnail(tf.keras.Layer):
         # Paste the thumbnails
         images_aug = tf.tensor_scatter_nd_update(images, patch_indices, thumbnail_contents)
 
-        # Mix the original and augmented images
+        # Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
 
-        # Restore the shape of the input images
+        # Restore shape of input images
         output_images = tf.reshape(output_images, original_image_shape)
         
         return output_images
@@ -181,6 +181,7 @@ class RandomCutThumbnail(tf.keras.Layer):
     def get_config(self):
         base_config = super().get_config()
         config = {
+            'layer_name': self.layer_name,
             'thumbnail_area': self.thumbnail_area,
             'resize_method': self.resize_method,
             'augmentation_ratio': self.augmentation_ratio,
