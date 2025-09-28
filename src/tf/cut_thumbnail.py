@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 from argument_utils import check_argument, check_augment_mix_args
-from dataaug_utils import sample_patch_locations, gen_patch_mask, mix_augmented_images
+from dataaug_utils import gen_patch_mask, mix_augmented_images
 
 
 class RandomCutThumbnail(tf.keras.Layer):
@@ -148,8 +148,7 @@ class RandomCutThumbnail(tf.keras.Layer):
         # Create a boolean mask to paste the thumbnails
         batch_size = image_shape[0]
         batched_thumbnail_size = (tf.repeat(thumbnail_size[0], batch_size), tf.repeat(thumbnail_size[1], batch_size))
-        patch_corners = sample_patch_locations(images, batched_thumbnail_size)
-        patch_mask = gen_patch_mask(images, patch_corners)
+        patch_mask, patch_corners = gen_patch_mask(images, batched_thumbnail_size)
 
         # Get the indices where patches should be placed
         patch_indices = tf.where(patch_mask)

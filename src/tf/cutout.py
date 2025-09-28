@@ -4,10 +4,7 @@
 import tensorflow as tf
 
 from argument_utils import check_argument, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
-from dataaug_utils import (
-    rescale_pixel_values, sample_patch_sizes, sample_patch_locations,
-    gen_patch_mask, gen_patch_contents, mix_augmented_images
-)
+from dataaug_utils import rescale_pixel_values, gen_patch_sizes, gen_patch_mask, gen_patch_contents, mix_augmented_images
 
 
 class RandomCutout(tf.keras.Layer):
@@ -126,11 +123,8 @@ class RandomCutout(tf.keras.Layer):
 
         # Calculate patch sizes (same for all images) and locations, 
         # then generate a boolean mask (True inside patches, False outside)
-        patch_sizes = sample_patch_sizes(images, patch_area=self.patch_area, patch_aspect_ratio=1.0, alpha=1.0)
-        patch_corners = sample_patch_locations(images, patch_sizes)
-
-        # Generate a boolean mask (True inside patches, False outside)
-        patch_mask = gen_patch_mask(images, patch_corners)
+        patch_sizes = gen_patch_sizes(images, patch_area=self.patch_area, patch_aspect_ratio=1.0, alpha=1.0)
+        patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Generate color contents of patches
         patch_contents = gen_patch_contents(images, self.fill_method)

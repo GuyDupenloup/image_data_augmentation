@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 from argument_utils import check_patch_sampling_args, check_augment_mix_args
-from dataaug_utils import sample_patch_sizes, sample_patch_locations, gen_patch_mask, mix_augmented_images
+from dataaug_utils import gen_patch_sizes, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutPaste(tf.keras.Layer):
@@ -107,18 +107,16 @@ class RandomCutPaste(tf.keras.Layer):
         if images.shape.rank == 3:
             images = tf.expand_dims(images, axis=-1)
 
-        # Sample patch sizes
-        patch_sizes = sample_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        # Sample patch sizes (same size for corresponding source and target patches)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
 
         # Sample locations for the source patches and generate
         # a boolean mask (True inside patches, False outside)
-        source_corners = sample_patch_locations(images, patch_sizes)
-        source_mask = gen_patch_mask(images, source_corners)
+        source_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Sample locations for the target patches and generate
         # a boolean mask (True inside patches, False outside)
-        target_corners = sample_patch_locations(images, patch_sizes)
-        target_mask = gen_patch_mask(images, target_corners)
+        target_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Gather contents of source patches
         source_indices = tf.where(source_mask)

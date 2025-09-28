@@ -1,10 +1,11 @@
 # Copyright (c) 2025 Guy Dupenloup
 # Licensed under the MIT License. See LICENSE file for details.
 
+import math
 import tensorflow as tf
 
 
-def sample_patch_sizes(
+def gen_patch_sizes(
     images: tf.Tensor,
     patch_area: tuple[float, float],
     patch_aspect_ratio: tuple[float, float],
@@ -47,8 +48,13 @@ def sample_patch_sizes(
         area_fraction = tf.fill([batch_size], patch_area)
 
     if isinstance(patch_aspect_ratio, (tuple, list)):
-        # Sample aspect ratios from uniform distribution
-        aspect_ratio = tf.random.uniform([batch_size], minval=patch_aspect_ratio[0], maxval=patch_aspect_ratio[1], dtype=tf.float32)
+        # Sample patch aspect ratios from a uniform distribution
+        # Aspect ratios are non-linear. We use logs for the sampling range
+        # to get better balance between tall and wide rectangles.
+        log_min = math.log(patch_aspect_ratio[0])
+        log_max = math.log(patch_aspect_ratio[1])
+        log_aspect_ratio = tf.random.uniform([batch_size], minval=log_min, maxval=log_max, dtype=tf.float32)
+        aspect_ratio = tf.exp(log_aspect_ratio)
     else:
         # Constant aspect ratio
         aspect_ratio = tf.fill([batch_size], patch_aspect_ratio)
@@ -68,7 +74,7 @@ def sample_patch_sizes(
     return patch_h, patch_w
 
 
-def sample_patch_locations(
+def gen_patch_mask(
     images: tf.Tensor,
     patch_size: tuple[tf.Tensor, tf.Tensor]
 ) -> tf.Tensor:
@@ -109,39 +115,10 @@ def sample_patch_locations(
     x1 = tf.cast(tf.round(x_rand * max_x1), tf.int32)
     y1 = tf.cast(tf.round(y_rand * max_y1), tf.int32)
     
-    # Get coordinates of opposite corners
+    # Get coordinates of opposite patch corners
     x2 = x1 + patch_w
     y2 = y1 + patch_h
     corners = tf.stack([y1, x1, y2, x2], axis=-1)
-
-    return corners
-
-
-def gen_patch_mask(
-    images: tf.Tensor,
-    patch_corners: tf.Tensor
-) -> tf.Tensor:
-    """
-    Given opposite corners coordinates of patches, generates
-    a boolean mask with value True inside patches.
-
-    Arguments:
-        image_shape:
-            The shape of the images (4D tensor).
-
-        patch_corners:
-            The opposite corners coordinates (y1, x1, y2, x2) 
-            of the patches.
-            Shape: [batch_size, 4]
-
-    Returns:
-        A boolean mask with value True inside the patches, False outside
-        Shape: [batch_size, img_height, img_width]
-    """
-
-    image_shape = tf.shape(images)
-    img_height, img_width = tf.unstack(image_shape[1:3])
-    y1, x1, y2, x2 = tf.unstack(patch_corners, axis=-1)
 
     # Create coordinate grids
     grid_x, grid_y = tf.meshgrid(tf.range(img_width), tf.range(img_height))
@@ -157,7 +134,7 @@ def gen_patch_mask(
     # Create the boolean mask
     mask = (grid_x >= x1) & (grid_x < x2) & (grid_y >= y1) & (grid_y <  y2)
  
-    return mask
+    return mask, corners
 
 
 def gen_patch_contents(

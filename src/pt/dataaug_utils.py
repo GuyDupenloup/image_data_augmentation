@@ -1,3 +1,7 @@
+# Copyright (c) 2025 Guy Dupenloup
+# Licensed under the MIT License. See LICENSE file for details.
+
+import math
 import torch
 import torch.nn.functional as F
 from torchvision.transforms import v2
@@ -47,8 +51,13 @@ def sample_patch_sizes(
         area_fraction = torch.full([batch_size], patch_area, dtype=torch.float32, device=device)
 
     if isinstance(patch_aspect_ratio, (tuple, list)):
-        # Sample patch aspect ratios from uniform distribution
-        aspect_ratio = torch.empty(batch_size, device=device).uniform_(*patch_aspect_ratio)
+        # Sample patch aspect ratios from a uniform distribution
+        # Aspect ratios are non-linear. We use logs for the sampling range
+        # to get better balance between tall and wide rectangles.
+        log_min = math.log(patch_aspect_ratio[0])
+        log_max = math.log(patch_aspect_ratio[1])
+        log_aspect = torch.empty(batch_size, device=device).uniform_(log_min, log_max)
+        aspect_ratio = torch.exp(log_aspect)
     else:
         # Constant aspect ratio
         aspect_ratio = torch.full([batch_size],  patch_aspect_ratio, dtype=torch.float32, device=device)

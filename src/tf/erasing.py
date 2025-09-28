@@ -4,10 +4,7 @@
 import tensorflow as tf
     
 from argument_utils import check_patch_sampling_args, check_fill_method_arg, check_pixels_range_args, check_augment_mix_args
-from dataaug_utils import (
-	rescale_pixel_values, sample_patch_sizes, sample_patch_locations, 
-	gen_patch_mask, gen_patch_contents, mix_augmented_images
-)
+from dataaug_utils import rescale_pixel_values, gen_patch_sizes, gen_patch_mask, gen_patch_contents, mix_augmented_images
 
 
 class RandomErasing(tf.keras.Layer):
@@ -136,9 +133,8 @@ class RandomErasing(tf.keras.Layer):
 
         # Sample patch sizes and locations, then generate a boolean mask
         # (True inside patches, False outside)
-        patch_sizes = sample_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
-        patch_corners = sample_patch_locations(images, patch_sizes)
-        patch_mask = gen_patch_mask(images, patch_corners)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Generate color contents of patches
         patch_contents = gen_patch_contents(images, self.fill_method)

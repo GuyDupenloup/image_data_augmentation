@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 from argument_utils import check_patch_sampling_args, check_augment_mix_args
-from dataaug_utils import sample_patch_sizes, sample_patch_locations, gen_patch_mask, mix_augmented_images
+from dataaug_utils import gen_patch_sizes, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutSwap(tf.keras.Layer):
@@ -108,17 +108,15 @@ class RandomCutSwap(tf.keras.Layer):
             images = tf.expand_dims(images, axis=-1)
 
         # Sample the dimensions of the patches
-        patch_sizes = sample_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
 
         # Sample locations for the first patches and generate
         # a boolean mask (True inside the patches, False outside)
-        corners_1 = sample_patch_locations(images, patch_sizes)
-        mask_1 = gen_patch_mask(images, corners_1)
+        mask_1, _ = gen_patch_mask(images, patch_sizes)
 
         # Sample locations for the second patches and generate
         # a boolean mask (True inside the patches, False outside)
-        corners_2 = sample_patch_locations(images, patch_sizes)
-        mask_2 = gen_patch_mask(images, corners_2)
+        mask_2, _ = gen_patch_mask(images, patch_sizes)
 
         # Gather the contents of the first patches
         indices_1 = tf.where(mask_1)

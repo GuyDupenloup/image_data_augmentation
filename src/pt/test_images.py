@@ -8,9 +8,9 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms, datasets
 
-torch.manual_seed(42)
-random.seed(42)
-np.random.seed(42)
+# torch.manual_seed(42)
+# random.seed(42)
+# np.random.seed(42)
 
 from cutout import RandomCutout
 from erasing import RandomErasing
@@ -80,10 +80,10 @@ def _augment_images(images, labels, function):
 
     elif function == "RandomErasing":
         erasing = RandomErasing(
-            patch_area=(0.05, 0.3),
+            patch_area=(0.05, 0.2),
             patch_aspect_ratio=(0.3, 3.0),
             alpha=1.0,
-            fill_method='noise',
+            fill_method='mean_per_channel',
             pixels_range=(0, 1),
             augmentation_ratio=1.0,
             bernoulli_mix=False
@@ -94,7 +94,7 @@ def _augment_images(images, labels, function):
         hide_and_seek = RandomHideAndSeek(
             grid_size=(4, 4),
             erased_patches=(0, 5),
-            fill_method= 'mean_per_channel',
+            fill_method='white',
             pixels_range=(0, 1),
             augmentation_ratio=1.0,
             bernoulli_mix=False
@@ -105,7 +105,7 @@ def _augment_images(images, labels, function):
         grid_mask = RandomGridMask(
             unit_length=(0.2, 0.4),
             masked_ratio=0.5,
-            fill_method='mean_per_channel',
+            fill_method='gray',
             pixels_range=(0, 1),
             augmentation_ratio=1.0,
             bernoulli_mix=False
@@ -198,22 +198,22 @@ def run_test(image_size, images_per_function, grayscale, test_list, shuffling_se
 
 if __name__ == '__main__':
 
-    image_size = (128, 128)
-    images_per_function = 4
+    image_size = (224, 224)
+    images_per_function = 24
     grayscale = False
     shuffling_seed = None   # Set to an int value to always see the same sequence of images
 
     test_list = [
-        'RandomCutout',
+        # 'RandomCutout',
         'RandomErasing',
-        'RandomHideAndSeek',
-        'RandomGridMask',
-        'RandomCutBlur',
-        'RandomCutPaste',
-        'RandomCutSwap',
-        'RandomCutThumbnail',
-        'RandomCutMix',
-        'RandomMixup',
+        # 'RandomHideAndSeek',
+        # 'RandomGridMask',
+        # 'RandomCutBlur',
+        # 'RandomCutPaste',
+        # 'RandomCutSwap',
+        # 'RandomCutThumbnail',
+        # 'RandomCutMix',
+        # 'RandomMixup',
     ]
 
     run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)

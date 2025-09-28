@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 from argument_utils import check_argument, check_patch_sampling_args, check_augment_mix_args
-from dataaug_utils import sample_patch_sizes, sample_patch_locations, gen_patch_mask, mix_augmented_images
+from dataaug_utils import gen_patch_sizes, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutBlur(tf.keras.Layer):
@@ -130,9 +130,8 @@ class RandomCutBlur(tf.keras.Layer):
 
         # Sample patch sizes and locations, then generate a boolean mask
         # (True inside patches, False outside)
-        patch_sizes = sample_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
-        patch_corners = sample_patch_locations(images, patch_sizes)
-        patch_mask = gen_patch_mask(images, patch_corners)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Erase patches from the images and fill them with the low-res images
         images_aug = tf.where(patch_mask[..., None], low_res_images, images)
