@@ -8,7 +8,7 @@ from torchvision.transforms import v2
 from typing import Tuple, Union
 
 
-def sample_patch_sizes(
+def gen_patch_sizes(
     images: torch.Tensor,
     patch_area: tuple[float, float],
     patch_aspect_ratio: tuple[float, float],
@@ -78,7 +78,7 @@ def sample_patch_sizes(
     return patch_h, patch_w
 
 
-def sample_patch_locations(
+def gen_patch_mask(
     images: torch.Tensor,
     patch_size: tuple[torch.Tensor, torch.Tensor]
 ) -> torch.Tensor:
@@ -119,40 +119,10 @@ def sample_patch_locations(
     x1 = torch.round(x_rand * max_x1).to(torch.int32)
     y1 = torch.round(y_rand * max_y1).to(torch.int32)
 
-    # Compute opposite corners
+    # Get opposite corners coordinates
     x2 = x1 + patch_w
     y2 = y1 + patch_h
-
-    return torch.stack([y1, x1, y2, x2], dim=-1)
-
-
-def gen_patch_mask(
-    images: torch.Tensor,
-    patch_corners: torch.Tensor
-) -> torch.Tensor:
-    """
-    Given opposite corners coordinates of patches, generates
-    a boolean mask with value True inside patches.
-
-    Arguments:
-        image_shape:
-            The shape of the images (4D tensor).
-
-        patch_corners:
-            The opposite corners coordinates (y1, x1, y2, x2) 
-            of the patches.
-            Shape: [batch_size, 4]
-
-    Returns:
-        A boolean mask with value True inside the patches, False outside
-        Shape: [batch_size, img_height, img_width]
-    """
-
-    device = images.device
-    img_height, img_width = images.shape[2:]
-
-    # Unpack corner coordinates
-    y1, x1, y2, x2 = patch_corners.unbind(dim=-1)  # each is [B]
+    corners = torch.stack([y1, x1, y2, x2], dim=-1)
 
     # Create coordinate grids (on GPU)
     grid_x, grid_y = torch.meshgrid(
@@ -169,7 +139,7 @@ def gen_patch_mask(
         (grid_y.unsqueeze(0) <  y2.view(-1, 1, 1))
     )
 
-    return mask
+    return mask, corners
 
 
 def gen_patch_contents(

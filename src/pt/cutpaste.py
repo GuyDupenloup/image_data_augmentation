@@ -7,7 +7,7 @@ from torchvision.transforms import v2
 from typing import Tuple, Union
 
 from argument_utils import check_patch_sampling_args, check_augment_mix_args
-from dataaug_utils import sample_patch_sizes, sample_patch_locations, gen_patch_mask, mix_augmented_images
+from dataaug_utils import gen_patch_sizes, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutPaste(v2.Transform):
@@ -113,18 +113,16 @@ class RandomCutPaste(v2.Transform):
             images = images.unsqueeze(1)  # [B,1,H,W]
 
         # Sample patches sizes
-        patch_sizes = sample_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
 
         # Sample locations of the source patches, then generate
         # a boolean mask (True inside patches, False outside)
-        source_corners = sample_patch_locations(images, patch_sizes)
-        source_mask = gen_patch_mask(images, source_corners)
+        source_mask, _ = gen_patch_mask(images, patch_sizes)
         source_mask = source_mask.unsqueeze(1).to(device)    # Add channel dim
 
         # Sample locations of the target patches, then generate
         # a boolean mask (True inside patches, False outside)
-        target_corners = sample_patch_locations(images, patch_sizes)
-        target_mask = gen_patch_mask(images, target_corners)
+        target_mask, _ = gen_patch_mask(images, patch_sizes)
         target_mask = target_mask.unsqueeze(1).to(device)    # Add channel dim
 
         # Gather source patch contents (all channels)

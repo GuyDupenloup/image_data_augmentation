@@ -199,21 +199,21 @@ def run_test(image_size, images_per_function, grayscale, test_list, shuffling_se
 if __name__ == '__main__':
 
     image_size = (224, 224)
-    images_per_function = 24
+    images_per_function = 4
     grayscale = False
     shuffling_seed = None   # Set to an int value to always see the same sequence of images
 
     test_list = [
-        # 'RandomCutout',
+        'RandomCutout',
         'RandomErasing',
-        # 'RandomHideAndSeek',
-        # 'RandomGridMask',
-        # 'RandomCutBlur',
-        # 'RandomCutPaste',
-        # 'RandomCutSwap',
-        # 'RandomCutThumbnail',
-        # 'RandomCutMix',
-        # 'RandomMixup',
+        'RandomHideAndSeek',
+        'RandomGridMask',
+        'RandomCutBlur',
+        'RandomCutPaste',
+        'RandomCutSwap',
+        'RandomCutThumbnail',
+        'RandomCutMix',
+        'RandomMixup',
     ]
 
     run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)

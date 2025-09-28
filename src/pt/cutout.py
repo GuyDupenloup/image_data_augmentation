@@ -7,13 +7,8 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import (
-    check_argument, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
-)
-from dataaug_utils import (
-    sample_patch_sizes, sample_patch_locations, gen_patch_mask, 
-    gen_patch_contents, mix_augmented_images, rescale_pixel_values
-)
+from argument_utils import check_argument, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
+from dataaug_utils import gen_patch_sizes, gen_patch_mask, gen_patch_contents, mix_augmented_images, rescale_pixel_values
 
 
 class RandomCutout(v2.Transform):
@@ -127,11 +122,10 @@ class RandomCutout(v2.Transform):
 
         # Calculate patch sizes (same in images, sample locations,  
         # and generate a boolean mask (True inside patches, False outside)
-        patch_sizes = sample_patch_sizes(images, patch_area=self.patch_area, patch_aspect_ratio=1.0, alpha=1.0)
-        patch_corners = sample_patch_locations(images, patch_sizes)
+        patch_sizes = gen_patch_sizes(images, patch_area=self.patch_area, patch_aspect_ratio=1.0, alpha=1.0)
 
         # Generate boolean mask (True inside patches, False outside)
-        patch_mask = gen_patch_mask(images, patch_corners)
+        patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Generate color contents of patches
         patch_contents = gen_patch_contents(images, self.fill_method)

@@ -7,7 +7,7 @@ from torchvision.transforms import v2
 from typing import Tuple, Union
 
 from argument_utils import check_patch_sampling_args, check_augment_mix_args
-from dataaug_utils import sample_patch_sizes, sample_patch_locations, gen_patch_mask, mix_augmented_images
+from dataaug_utils import gen_patch_sizes, gen_patch_mask, mix_augmented_images
 
 
 class RandomCutSwap(v2.Transform):
@@ -111,23 +111,17 @@ class RandomCutSwap(v2.Transform):
             images = images.unsqueeze(1)
 
         # Sample patch sizes
-        patch_sizes = sample_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
 
         # Sample locations of the 1st set of patches, then generate
         # a boolean mask (True inside patches, False outside)
-        corners_1 = sample_patch_locations(images, patch_sizes)
-        mask_1 = gen_patch_mask(images, corners_1)
-        if mask_1.ndim == 3:
-            mask_1 = mask_1.unsqueeze(1)  # Add channel dim
-        mask_1 = mask_1.to(device)
+        mask_1, _ = gen_patch_mask(images, patch_sizes)
+        mask_1 = mask_1.unsqueeze(1)  # Add channel dim
 
         # Sample locations of the 2nd set of patches, then generate
         # a boolean mask (True inside patches, False outside)
-        corners_2 = sample_patch_locations(images, patch_sizes)
-        mask_2 = gen_patch_mask(images, corners_2)
-        if mask_2.ndim == 3:
-            mask_2 = mask_2.unsqueeze(1)  # [B,1,H,W]
-        mask_2 = mask_2.to(device)
+        mask_2, _ = gen_patch_mask(images, patch_sizes)
+        mask_2 = mask_2.unsqueeze(1)  # Add channel dim
 
         # Gather contents of the 1st set of patches
         indices_1 = mask_1.nonzero(as_tuple=False)  # [num_pixels, 4]
