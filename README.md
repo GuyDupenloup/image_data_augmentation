@@ -8,9 +8,9 @@ This repository provides high-performance, easy-to-use implementations of popula
 
 These methods increase dataset diversity and improve generalization across image classification, object detection, anomaly detection, and other vision tasks.
 
-# 1. Introduction
+## 1. Introduction
 
-## Supported Augmentation Strategies
+### Supported Augmentation Strategies
 
 | Name            | Strategy                                                      | Application Domain                  | Research paper reference |
 |-----------------|---------------------------------------------------------------|-------------------------------------|-------------|
@@ -29,7 +29,7 @@ References to research papers are available at the end of this README. For an ex
 
 Examples of images for each of these strategies are provided below.
 
-## Examples of images
+### Examples of images
 
 Below are examples of augmented images, one per augmentation strategy.
 
@@ -44,7 +44,7 @@ Below are examples of augmented images, one per augmentation strategy.
 ![](pictures/cutpaste.JPG)
 ![](pictures/cutswap.JPG)
 
-## Key features
+### Key features
 
 All augmentation capabilities have been designed for performance, flexibility, and ease of use.
 
@@ -55,9 +55,9 @@ All augmentation capabilities have been designed for performance, flexibility, a
 - **Default values**: Default settings are provided, allowing for immediate use without extensive setup.
 - **Argument validation**: Augmentation parameters are thoroughly verified and detailed error messages are provided.
 
-# 2. Tensorflow implementation
+## 2. Tensorflow implementation
 
-## Layers and functions
+### Layers and functions
 
 Most augmentation capabilities are implemented as custom layers. These layers can be used in the preprocessing stack and mixed freely with TensorFlow layers, such as RandomContrast and RandomFlip.
 
@@ -67,7 +67,7 @@ Both layers and functions were designed to be integrated in the training loop to
 
 Each layer and function comes with a detailed docstring in the source code that describes its parameters.
 
-## Source Code
+### Source Code
 
 The Tensorflow source code is in directory **src/tf**
 
@@ -96,7 +96,7 @@ The directory also contains the files shown in the table below.
 | train_custom_model.py  | Training script using a custom model       | 
 
 
-## Making results reproducible
+### Making results reproducible
 
 Random generation is used extensively in all layers and functions.
 
@@ -115,9 +115,9 @@ tf.random.set_seed(seed)      # TensorFlow RGN
 
 Seed settings should be done immediately after importing Python packages and Tensorflow, before you import the data augmentation packages (and any other packages you may have).
 
-# 3. Pytorch Implementation
+## 3. Pytorch Implementation
 
-## V2 transforms
+### V2 transforms
 
 All augmentation capabilities are implemented as V2 transforms. They can be mixed freely with PyTorch V2 transforms, such as color jitter and affine transforms. As they are integrated in the training loop, they run on the GPU.
 
@@ -128,7 +128,7 @@ An example of training script is provided that demonstrates the use of the data 
 Each transform comes with a detailed docstring in the source code that describes its parameters.
 
 
-## Source Code
+### Source Code
 
 The Pytorch source code is in directory **src/pt**
 
@@ -154,7 +154,7 @@ The directory also contains the files shown in the table below.
 | dataaug_utils.py       | Shared functions                 | 
 | train.py               | Training script                  | 
 
-## Making results reproducible
+### Making results reproducible
 
 Random generation is used extensively in all transforms.
 
@@ -195,7 +195,7 @@ In the **\_\_main\_\_** part of the scripts, you can customize:
 If you set the shuffling seed to None, you will get a different sequence of images every time you run the script. If you set it to an integer value, you will always get the same sequence.
 
 
-# 5. Research paper references
+## 5. Research paper references
 
 [1] Teerath Kumar, Alessandra Mileo, Rob Brennan, Malika Bendechache (2023). **Image Data Augmentation Approaches: A Comprehensive Survey and Future directions**.
 
