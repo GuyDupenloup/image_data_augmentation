@@ -42,8 +42,10 @@ class RandomCutSwap(v2.Transform):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
-            Patch areas are sampled from a Beta distribution. See `alpha` argument.
-
+            Patch areas are sampled from a Beta distribution with shape parameters
+            `alpha` and beta=1.0. By default, `alpha` is 1.0 making the distribution
+            uniform.
+            
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
             aspect ratios are sampled. Minimum value must be > 0.
@@ -104,41 +106,37 @@ class RandomCutSwap(v2.Transform):
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
         original_image_shape = images.shape
-        device = images.device  # keep track of input device
 
-        # Reshape grayscale images [B,H,W] -> [B,1,H,W]
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
         if images.ndim == 3:
             images = images.unsqueeze(1)
 
         # Sample patch sizes
         patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
 
-        # Sample locations of the 1st set of patches, then generate
-        # a boolean mask (True inside patches, False outside)
+        # Generate boolean mask for 1st set of patches (True inside patches)
         mask_1, _ = gen_patch_mask(images, patch_sizes)
         mask_1 = mask_1.unsqueeze(1)  # Add channel dim
 
-        # Sample locations of the 2nd set of patches, then generate
-        # a boolean mask (True inside patches, False outside)
+        # Generate boolean mask for 2nd set of patches (True inside patches)
         mask_2, _ = gen_patch_mask(images, patch_sizes)
         mask_2 = mask_2.unsqueeze(1)  # Add channel dim
 
-        # Gather contents of the 1st set of patches
+        # Gather contents of 1st set of patches
         indices_1 = mask_1.nonzero(as_tuple=False)  # [num_pixels, 4]
         contents_1 = images[indices_1[:, 0], :, indices_1[:, 2], indices_1[:, 3]]  # [num_pixels, C]
 
-        # Gather contents of the 2nd set of patches
+        # Gather contents of 2nd set of patches
         indices_2 = mask_2.nonzero(as_tuple=False)
         contents_2 = images[indices_2[:, 0], :, indices_2[:, 2], indices_2[:, 3]]
 
-        # Swap patches
+        # Swap patch contents
         images_aug = images.clone()
         images_aug[indices_1[:, 0], :, indices_1[:, 2], indices_1[:, 3]] = contents_2
         images_aug[indices_2[:, 0], :, indices_2[:, 2], indices_2[:, 3]] = contents_1
 
         # Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
-        output_images = output_images.to(device)
 
         # Restore shape of input images
         output_images = output_images.reshape(original_image_shape)

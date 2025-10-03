@@ -145,11 +145,11 @@ class RandomHideAndSeek(v2.Transform):
                 device=device
             )
 
-        # Don't erase more patches than total available (for robustness)
+        # Ensure not to erase more patches than total available
         num_patches = torch.minimum(num_patches, torch.tensor(grid_size[0] * grid_size[1], device=device))
 
+        # Generate grids
         indices = torch.argsort(torch.rand(batch_size, grid_size[0] * grid_size[1], device=device))
-
         grid_mask = torch.where(indices < num_patches[:, None], True, False)
         grid_mask = grid_mask.reshape(batch_size, grid_size[0], grid_size[1])
 
@@ -171,10 +171,9 @@ class RandomHideAndSeek(v2.Transform):
     def _gen_patch_contents(self, images, grid_size, patch_size, fill_method):
 
         """
-        This function generates the color contents of the erased patches,
-        accordingly to the specified fill method: random color, uniform color,
-        or noise.
-        It outputs a tensor with shape [batch_size, img_width, img_height, 3].
+        Generates the color contents of the erased patches, accordingly 
+        to the specified fill method: random color, uniform color, or noise.
+        Outputs a tensor with shape [B, 3, H, W].
         """
 
         device = images.device
@@ -222,9 +221,12 @@ class RandomHideAndSeek(v2.Transform):
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
         original_image_shape = images.shape
-        if images.ndim == 3:  # i.e., [B, H, W]
-            images = images.unsqueeze(1)  # insert a channel dimension at index 1
 
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
+        if images.ndim == 3:
+            images = images.unsqueeze(1)
+
+        # Save pixels dtype and rescale to (0, 255)
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 

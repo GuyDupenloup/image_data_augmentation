@@ -43,8 +43,10 @@ class RandomCutPaste(v2.Transform):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
-            Patch areas are sampled from a Beta distribution. See `alpha` argument.
-
+            Patch areas are sampled from a Beta distribution with shape parameters
+            `alpha` and beta=1.0. By default, `alpha` is 1.0 making the distribution
+            uniform.
+            
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
             aspect ratios are sampled. Minimum value must be > 0.
@@ -104,34 +106,30 @@ class RandomCutPaste(v2.Transform):
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
-        # Preserve original shape
+        device = images.device
         original_image_shape = images.shape
-        device = images.device  # ensure we keep track of the device
 
-        # Reshape [B,H,W] -> [B,1,H,W] if needed
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
         if images.ndim == 3:
-            images = images.unsqueeze(1)  # [B,1,H,W]
+            images = images.unsqueeze(1)
 
         # Sample patches sizes
         patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
 
-        # Sample locations of the source patches, then generate
-        # a boolean mask (True inside patches, False outside)
+        # Generate boolean mask for source patches (True inside patches)
         source_mask, _ = gen_patch_mask(images, patch_sizes)
         source_mask = source_mask.unsqueeze(1).to(device)    # Add channel dim
 
-        # Sample locations of the target patches, then generate
-        # a boolean mask (True inside patches, False outside)
+        # Generate boolean mask for target patches (True inside patches)
         target_mask, _ = gen_patch_mask(images, patch_sizes)
         target_mask = target_mask.unsqueeze(1).to(device)    # Add channel dim
 
-        # Gather source patch contents (all channels)
-        # use mask.nonzero so indices are on the same device as the mask
+        # Gather contents of source patches
         source_indices = source_mask.nonzero(as_tuple=False)
         source_contents = images[source_indices[:, 0], :,  # all channels
                                 source_indices[:, 2], source_indices[:, 3]]  # [num_pixels, C]
 
-        # Scatter into target patches (all channels)
+        # Scatter into target patches
         target_indices = target_mask.nonzero(as_tuple=False)
         images_aug = images.clone()
         images_aug[target_indices[:, 0], :,  # all channels
@@ -139,7 +137,6 @@ class RandomCutPaste(v2.Transform):
 
         # Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
-        output_images = output_images.to(device)  # ensure result on same device
 
         # Restore shape of input images
         output_images = output_images.reshape(original_image_shape)

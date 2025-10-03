@@ -118,17 +118,15 @@ class RandomCutMix(v2.Transform):
     def forward(self, data) -> torch.Tensor:
 
         images, labels = data
-
         original_shape = images.shape
 
-        # Reshape grayscale images [B, H, W] -> [B, H, W, 1]
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
         if images.ndim == 3:
-            images = images.unsqueeze(-1)  # [B, H, W, 1]
+            images = images.unsqueeze(1)
 
         batch_size, _, img_height, img_width = images.shape
 
-        # Sample patch sizes and locations, then generate 
-        # a boolean mask (True inside patches, False outside)
+        # Get patch sizes and generate boolean mask (True inside patches)
         patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
         patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
@@ -136,7 +134,7 @@ class RandomCutMix(v2.Transform):
         shuffle_indices = torch.randperm(batch_size, device=images.device)
         shuffled_images = images[shuffle_indices]
 
-        # Paste the patches from the shuffled images
+        # Fill patches with contents of patches from the other images
         images_aug = torch.where(patch_mask[:, None, :, :], shuffled_images, images)
 
         # Compute lambda values based on actual patch sizes

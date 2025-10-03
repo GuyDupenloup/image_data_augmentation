@@ -114,23 +114,23 @@ class RandomCutout(v2.Transform):
     def forward(self, images) -> torch.Tensor:
 
         original_image_shape = images.shape
-        if images.ndim == 3:  # i.e., [B, H, W]
-            images = images.unsqueeze(1)  # insert a channel dimension at index 1
 
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
+        if images.ndim == 3:
+            images = images.unsqueeze(1)
+
+        # Save pixels dtype and rescale to (0, 255)
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
-        # Calculate patch sizes (same in images, sample locations,  
-        # and generate a boolean mask (True inside patches, False outside)
+        # Calculate patch sizes (same for all images) and generate boolean mask (True inside patches)
         patch_sizes = gen_patch_sizes(images, patch_area=self.patch_area, patch_aspect_ratio=1.0, alpha=1.0)
-
-        # Generate boolean mask (True inside patches, False outside)
         patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Generate color contents of patches
         patch_contents = gen_patch_contents(images, self.fill_method)
 
-        # Apply mask correctly - patch_mask is [B, H, W], need to broadcast over channel dim
+        # Fill patches with color contents
         images_aug = torch.where(patch_mask[:, None, :, :], patch_contents, images)
 
         # Mix the original and augmented images

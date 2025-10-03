@@ -41,8 +41,10 @@ class RandomErasing(v2.Transform):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
-            Patch areas are sampled from a Beta distribution. See `alpha` argument.
-
+            Patch areas are sampled from a Beta distribution with shape parameters
+            `alpha` and beta=1.0. By default, `alpha` is 1.0 making the distribution
+            uniform.
+            
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
             aspect ratios are sampled. Minimum value must be > 0.
@@ -125,24 +127,26 @@ class RandomErasing(v2.Transform):
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
         original_image_shape = images.shape
-        if images.ndim == 3:  # i.e., [B, H, W]
-            images = images.unsqueeze(1)  # insert a channel dimension at index 1
 
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
+        if images.ndim == 3:
+            images = images.unsqueeze(1)
+
+        # Save pixels dtype and rescale to (0, 255)
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
-        # Sample patch sizes and locations, then generate 
-        # a boolean mask (True inside patches, False outside)
+        # Get patch sizes and generate boolean mask (True inside patches)
         patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
         patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Generate color contents of patches
         patch_contents = gen_patch_contents(images, self.fill_method)
 
-        # Apply mask correctly - patch_mask is [B, H, W], need to broadcast over channel dim
+        # Fill patches with color contents
         images_aug = torch.where(patch_mask[:, None, :, :], patch_contents, images)
 
-        # Mix the original and augmented images
+        # Mix original and augmented images
         output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
 
         # Restore shape, data type and pixels range of input images

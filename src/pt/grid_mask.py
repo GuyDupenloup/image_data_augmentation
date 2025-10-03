@@ -119,7 +119,7 @@ class RandomGridMask(v2.Transform):
         """
         Checks that the arguments passed to the transform are valid
         """
-		
+
         check_argument(
             self.unit_length,
             context={'arg_name': 'unit_length', 'caller_name' : self.transform_name},
@@ -130,7 +130,6 @@ class RandomGridMask(v2.Transform):
             context={'arg_name': 'masked_ratio', 'caller_name' : self.transform_name},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-
         check_fill_method_arg(self.fill_method, 'RandomGridMask')
         check_pixels_range_args(self.pixels_range, 'RandomGridMask')
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
@@ -194,10 +193,12 @@ class RandomGridMask(v2.Transform):
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
         original_image_shape = images.shape
-        if images.ndim == 3:  # i.e., [B, H, W]
-            images = images.unsqueeze(1)  # insert a channel dimension at index 1
-        image_shape = images.shape
 
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
+        if images.ndim == 3:
+            images = images.unsqueeze(1)
+
+        # Save pixels dtype and rescale to (0, 255)
         pixels_dtype = images.dtype
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 

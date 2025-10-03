@@ -105,12 +105,11 @@ class RandomMixup(v2.Transform):
     def forward(self, data) -> torch.Tensor:
 
         images, labels = data
-
         original_shape = images.shape
 
-        # Reshape grayscale images [B, H, W] -> [B, H, W, 1]
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
         if images.ndim == 3:
-            images = images.unsqueeze(-1)  # [B, H, W, 1]
+            images = images.unsqueeze(1)
 
         batch_size = images.shape[0]
 

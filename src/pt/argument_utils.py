@@ -9,8 +9,9 @@ def check_argument(
 ) -> None:
 
     """
-    Checks that an argument passed to a transform meets specific constraints.
-    Value errors are raised if the argument does not meet them.
+    Checks that an argument passed from a caller (function, layer, transform) 
+    meets specific constraints. Value errors are raised if the argument 
+    does not meet them.
 
     Arguments:
     ---------
@@ -40,7 +41,7 @@ def check_argument(
                     elements of the tuple passed in argument.
                     Options:
                     - '>=' : 2nd value >= 1st value.
-                    - '>' : 2nd value > 1st value (default).
+                    - '>' : 2nd value > 1st value (default)
                     - 'None' : no constraints.
 
                 'data_type':
@@ -228,6 +229,7 @@ def check_argument(
         check_value_constraint(arg, constraints['max_val'], 'max', context_msg)
 
 
+# Check range of pixel values
 def check_pixels_range_args(arg, caller_name):
     check_argument(
         arg,
@@ -235,6 +237,7 @@ def check_pixels_range_args(arg, caller_name):
         constraints={'format': 'tuple'}
     )
 
+# Check original/augmented images mixing ratio and method
 def check_augment_mix_args(ratio_arg, bernoulli_arg, caller_name):
     check_argument(
         ratio_arg,
@@ -246,14 +249,14 @@ def check_augment_mix_args(ratio_arg, bernoulli_arg, caller_name):
             f'Argument `bernoulli_mix` of function `{caller_name}`: '
             f'expecting a boolean value\nReceived: {bernoulli_arg}'
             )
-        
+
+# Check the arguments used in patch sampling
 def check_patch_sampling_args(patch_area, patch_aspect_ratio, alpha, caller_name):
     check_argument(
         patch_area,
         context={'arg_name': 'patch_area', 'caller_name': caller_name},
         constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
     )
-
     check_argument(
         patch_aspect_ratio,
         context={'arg_name': 'patch_aspect_ratio', 'caller_name': caller_name},
@@ -264,7 +267,8 @@ def check_patch_sampling_args(patch_area, patch_aspect_ratio, alpha, caller_name
         context={'arg_name': 'alpha', 'caller_name': caller_name},
         constraints={'min_val': ('>', 0)}
     )
-  
+
+# Check patch fill method
 def check_fill_method_arg(arg, caller_name):
     supported_fill_methods = ('black', 'gray', 'white', 'mean_per_channel', 'random', 'noise')
     if arg not in supported_fill_methods:

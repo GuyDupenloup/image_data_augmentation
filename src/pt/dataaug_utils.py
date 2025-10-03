@@ -16,20 +16,24 @@ def gen_patch_sizes(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     
     """
-    Samples heights and widths of patches
+    Generates heights and widths of patches
 
     Arguments:
-        image_shape:
-            The shape of the images (4D tensor).
+        images:
+            Images patches are cut from
 
         patch_area:
             A tuple of two floats specifying the range from which patch areas
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
+            Patch areas are sampled from a Beta distribution with shape parameters
+            `alpha` and beta=1.0. By default, `alpha` is 1.0 making the distribution
+            uniform.
 
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch 
             height/width aspect ratios are sampled. Values must be > 0.
+            Ratios are sampled from a uniform distribution.
 
     Returns:
         A tuple of 2 tensors with shape [batch_size]:
@@ -85,22 +89,23 @@ def gen_patch_mask(
     
     """
     Samples patch locations given their heights and widths.
-    Locations are constrained in such a way that the patches 
+    Locations are constrained to ensured that patches 
     are entirely contained inside the images.
 
     Arguments:
-        image_shape:
-            The shape of the images. Either [B, H, W, C] or
-            [B, H, W] (the channel is not used).
+        images:
+            Images the patches are cut from
 
         patch_size:
             A tuple of 2 tensors with shape [batch_size]:
-                `(patch_height, patch_width)` 
+                (patch_height, patch_width)
 
     Returns:
-        A tensor with shape [batch_size, 4].
-        Contains the opposite corners coordinates (y1, x1, y2, x2)
-        of the patches.
+        A tuple of 2 tensors:
+        - A boolean mask with value True inside patches, False outside
+          Shape: [B, H, W]
+        - Absolute coordinates of patch opposite corners (y1, x1, y2, x2)
+          Shape: [B, 4]
     """
 
     device = images.device
@@ -148,13 +153,13 @@ def gen_patch_contents(
 ) -> torch.Tensor:
 
     """
-    Generates color contents for erased cells (images filled 
-    with solid color or noise).
+    Generates color contents to fill patches
 
     Arguments:
         images:
-            The images being augmented (4D tensor).
-            Pixels must be in range [0, 255] with tf.int32 data type.
+            The images patches are cut from.
+            Shape: [B, 3, H, W] or [B, H, W]
+            Pixels must be in range [0, 255] with int32 data type.
 
         fill_method:
             A string, the method to use to generate the contents.
@@ -248,13 +253,15 @@ def mix_augmented_images(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Mixes original and augmented images according to a specified
-    augmented/original ratio and method. Fully vectorized and GPU-friendly.
+    augmented/original ratio and method.
     """
 
     # Ensure inputs have the same shape
     if original_images.shape != augmented_images.shape:
-        raise ValueError("original_images and augmented_images must have the same shape")
-
+        raise ValueError(
+            "Function `mix_augmented_images`: original_images and augmented_images must have the same shape"
+        )
+    
     device = original_images.device
     batch_size = original_images.shape[0]
 
@@ -267,10 +274,10 @@ def mix_augmented_images(
         mask = torch.ones(batch_size, dtype=torch.bool, device=device)
 
     else:
-        # Ensure shape is [B, H, W, C] if input was [B, H, W]
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
         if original_images.ndim == 3:
-            original_images = original_images.unsqueeze(-1)
-            augmented_images = augmented_images.unsqueeze(-1)
+            original_images = original_images.unsqueeze(1)
+            augmented_images = augmented_images.unsqueeze(1)
 
         if bernoulli_mix:
             # Bernoulli sampling: each position independent
@@ -283,11 +290,12 @@ def mix_augmented_images(
             
             mask = torch.zeros(batch_size, dtype=torch.bool, device=device)
             mask[:num_augmented] = True
-            # Shuffle mask on GPU
+
+            # Shuffle mask
             perm = torch.randperm(batch_size, device=device)
             mask = mask[perm]
 
-        # Apply mask: broadcasting over H, W, C
+        # Apply mask: broadcasting over C, H, W
         mixed_images = torch.where(mask.view(-1, 1, 1, 1), augmented_images, original_images)
 
         # Restore to original input shape

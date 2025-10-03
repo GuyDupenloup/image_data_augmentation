@@ -43,8 +43,10 @@ class RandomCutBlur(v2.Transform):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
-            Patch areas are sampled from a Beta distribution. See `alpha` argument.
-
+            Patch areas are sampled from a Beta distribution with shape parameters
+            `alpha` and beta=1.0. By default, `alpha` is 1.0 making the distribution
+            uniform.
+            
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
             aspect ratios are sampled. Minimum value must be > 0.
@@ -118,34 +120,30 @@ class RandomCutBlur(v2.Transform):
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
         device = images.device
-
-        # Reshape images with shape [batch_size, height, width]
-        # to shape [batch_size, height, width, 1]
         original_image_shape = images.shape
-        if images.ndim == 3:  # i.e., [B, H, W]
-            images = images.unsqueeze(1)  # insert a channel dimension at index 1
 
-        # Original image size as ints for interpolate
-        original_size = images.shape[2:]
-
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
+        if images.ndim == 3:
+            images = images.unsqueeze(1)
+        
         # Low-res size
+        original_size = images.shape[2:]
         image_size = torch.tensor(images.shape[2:], dtype=torch.float32, device=device)
         low_res_size = self.blur_factor * image_size
         low_res_size = torch.round(low_res_size).to(torch.int64)
 
-        # Downsize then up-size images
+        # Downsize then up-size images to get blurred images
         smaller_images = F.interpolate(images, size=tuple(low_res_size.tolist()), mode='bilinear', align_corners=False)
         low_res_images = F.interpolate(smaller_images, size=original_size, mode='bilinear', align_corners=False)
 
         # Match dtype
         low_res_images = low_res_images.to(images.dtype)
 
-        # Sample patch sizes and locations, then generate 
-        # a boolean mask (True inside patches, False outside)
+        # Get patch sizes and generate boolean mask (True inside patches)
         patch_sizes= gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
         patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
-        # Erase the patches from the images and fill them with the low-res images
+        # Fill patches with the low-res images
         images_aug = torch.where(patch_mask[:, None, :, :], low_res_images, images)
 
         # Mix the original and augmented images

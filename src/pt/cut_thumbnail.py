@@ -112,7 +112,7 @@ class RandomCutThumbnail(v2.Transform):
     def _calculate_thumbnail_size(self, image_size, thumbnail_area):
         """
         Calculates height and width of the thumbnails.
-        The thumbnail area is specified as a fraction of the image's area.
+        The thumbnail area is specified as a fraction of the image area.
         The aspect ratio is preserved.
         
         Args:
@@ -146,36 +146,34 @@ class RandomCutThumbnail(v2.Transform):
     def forward(self, images: torch.Tensor) -> torch.Tensor:
 
         device = images.device
-
-        # ---- Preserve original shape
         original_image_shape = images.shape
 
-        # ---- Reshape [B,H,W] -> [B,1,H,W] if grayscale
+        # Reshape images with shape [B, H, W] to [B, 1, H, W]
         if images.ndim == 3:
             images = images.unsqueeze(1)
 
         image_shape = images.shape
         batch_size, channels = image_shape[:2]
 
-        # ---- Calculate thumbnail size and resize
+        # Calculate thumbnail size and resize images
         thumb_h, thumb_w = self._calculate_thumbnail_size(images.shape[2:], self.thumbnail_area)
         thumbnails = F.interpolate(images, size=(thumb_h, thumb_w),
                                 mode=self.resize_method, align_corners=False)
         thumbnails = thumbnails.to(images.dtype)
 
-        # ---- Create patch mask
-        batched_thumbnail_size = (
+        # Create boolean mask (True inside patches)
+        batched_thumb_size = (
             torch.full((batch_size,), thumb_h, device=device, dtype=torch.int64),
             torch.full((batch_size,), thumb_w, device=device, dtype=torch.int64)
         )
-        patch_mask, patch_corners = gen_patch_mask(images, batched_thumbnail_size)
-        patch_mask = patch_mask.unsqueeze(1)  # [B,1,H,W]
+        patch_mask, patch_corners = gen_patch_mask(images, batched_thumb_size)
+        patch_mask = patch_mask.unsqueeze(1)  # Add channel dim
 
         # Get patch indices
-        patch_indices = torch.nonzero(patch_mask, as_tuple=False)  # [num_pixels, 4]
+        patch_indices = torch.nonzero(patch_mask, as_tuple=False)
         batch_indices = patch_indices[:, 0]  # batch index for each pixel
 
-        # ---- Compute relative coordinates inside the patch and scale to thumbnail
+        # Compute relative coordinates inside the patch and scale to thumbnail
         patch_top = patch_corners[batch_indices, 0].long()    # y1
         patch_left = patch_corners[batch_indices, 1].long()   # x1
         patch_bottom = patch_corners[batch_indices, 2].long() # y2  
@@ -202,18 +200,16 @@ class RandomCutThumbnail(v2.Transform):
 
         # Gather pixel values from thumbnails across channels
         num_pixels = patch_indices.shape[0]
-        channel_idx = torch.arange(channels, device=device).view(1, channels).expand(num_pixels, channels)
-        thumbnail_contents = thumbnails[batch_indices.view(-1, 1), channel_idx, thumb_y.view(-1, 1), thumb_x.view(-1, 1)]
-        thumbnail_contents = thumbnail_contents.view(num_pixels, channels)
+        channel_indices = torch.arange(channels, device=device).view(1, channels).expand(num_pixels, channels)
+        thumb_contents = thumbnails[batch_indices.view(-1, 1), channel_indices, thumb_y.view(-1, 1), thumb_x.view(-1, 1)]
+        thumb_contents = thumb_contents.view(num_pixels, channels)
 
         # Paste thumbnails into images
         images_aug = images.clone()
-        images_aug[batch_indices, :, pixel_y, pixel_x] = thumbnail_contents
+        images_aug[batch_indices, :, pixel_y, pixel_x] = thumb_contents
 
         # Mix original and augmented images
-        output_images, _ = mix_augmented_images(
-            images, images_aug, self.augmentation_ratio, self.bernoulli_mix
-                )
+        output_images, _ = mix_augmented_images(images, images_aug, self.augmentation_ratio, self.bernoulli_mix)
 
         # Restore shape of input images
         output_images = output_images.reshape(original_image_shape)

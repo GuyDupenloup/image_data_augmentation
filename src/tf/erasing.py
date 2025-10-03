@@ -38,13 +38,13 @@ class RandomErasing(tf.keras.Layer):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
-            Patch areas are sampled from a Beta distribution. See `alpha` argument.
+            Patch areas are sampled from a Beta distribution with shape parameters
+            `alpha` and beta=1.0.
 
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
             aspect ratios are sampled. Minimum value must be > 0.
-            Patch aspect ratios are sampled from a uniform distribution.
-
+            
         alpha:
             A float specifying the alpha parameter of the Beta distribution used
             to sample patch areas. Set to 0 by default, making the distribution
