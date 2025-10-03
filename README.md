@@ -121,7 +121,7 @@ Seed settings should be done immediately after importing Python packages and Ten
 
 All augmentation capabilities are implemented as V2 transforms. They can be mixed freely with PyTorch V2 transforms, such as color jitter and affine transforms. As they are integrated in the training loop, they run on the GPU.
 
-Note that only V2 transforms run the GPU, not the transforms that were initially in Pytorch (and still are). These transforms are integrated with data loading, and thus run on the CPU.
+Note that only V2 transforms run on the GPU, not the transforms that were initially in Pytorch (and still are). These transforms are integrated with data loading, and thus run on the CPU.
 
 An example of training script is provided that demonstrates the use of the data augmentation transforms, and how they can be mixed with Pytorch V2 transforms.
 

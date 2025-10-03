@@ -1,6 +1,7 @@
 # Copyright (c) 2025 Guy Dupenloup
 # Licensed under the MIT License. See LICENSE file for details.
 
+import argparse
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -164,8 +165,7 @@ def run_test(image_size, images_per_function, grayscale, test_list, shuffling_se
         if i == len(test_list) - 1:
             return
 
-
-if __name__ == '__main__':
+def main():
 
     image_size = (224, 224)
     images_per_function = 4
@@ -186,3 +186,9 @@ if __name__ == '__main__':
     ]
 
     run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)
+
+
+if __name__ == '__main__':
+    main()
+
+
