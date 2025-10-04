@@ -1,7 +1,6 @@
 # Copyright (c) 2025 Guy Dupenloup
 # Licensed under the MIT License. See LICENSE file for details.
 
-import argparse
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -142,7 +141,7 @@ def _augment_images(images, labels, function):
     return images_aug
 
 
-def run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed):
+def _run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed):
 
     # Set the minimum batch size to 64 (useful for functions
     # that sample another image from the batch)
@@ -174,18 +173,18 @@ def main():
 
     test_list = [
         'RandomCutout', 
-        'RandomErasing',
-        'RandomHideAndSeek',
-        'RandomGridMask', 
-        'RandomCutBlur',
-        'RandomCutPaste',
-        'RandomCutSwap', 
-        'RandomCutThumbnail',
-        'random_cutmix',
-        'random_mixup'
+        # 'RandomErasing',
+        # 'RandomHideAndSeek',
+        # 'RandomGridMask', 
+        # 'RandomCutBlur',
+        # 'RandomCutPaste',
+        # 'RandomCutSwap', 
+        # 'RandomCutThumbnail',
+        # 'random_cutmix',
+        # 'random_mixup'
     ]
 
-    run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)
+    _run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)
 
 
 if __name__ == '__main__':
