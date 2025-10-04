@@ -6,7 +6,7 @@
 Boost your model’s performance with advanced image augmentation techniques!
 This repository provides high-performance, easy-to-use implementations of popular cutting, masking, and mixing strategies in both TensorFlow and PyTorch.
 
-These methods increase dataset diversity and improve generalization across image classification, object detection, anomaly detection, and other vision tasks.
+These methods increase dataset diversity and improve model generalization across image classification, object detection, anomaly detection, and other vision tasks.
 
 ## 1. Introduction
 
@@ -18,7 +18,7 @@ These methods increase dataset diversity and improve generalization across image
 | Random Erasing  | Erase a rectangular patch with random size, shape, and location | Image classification, object detection, Re-Identification  | [3] |
 | Hide-and-Seek   | Divide the image into a grid and randomly erase patches       | Image classification, Weakly-Supervised Localization | [4] |
 | Grid Mask       | Apply a regular masking pattern                               | Image classification, object detection    | [5] |  
-| CutMix          | Cut a patch from another image and paste it in the image      | Image classification, object detection    | [6] |
+| CutMix          | Cut a patch from another image and paste it into the image    | Image classification, object detection    | [6] |
 | Mixup           | Blend the image with another image                            | Image classification                      | [7] |
 | CutBlur         | Blur a randomly chosen region                                 | Image super-resolution                    | [8] | 
 | Cut Thumbnail   | Paste a scaled-down version of the image at a random location | Image classification (multi-scale robustness) | [9] | 
@@ -26,8 +26,6 @@ These methods increase dataset diversity and improve generalization across image
 | CutSwap         | Swap two patches of the same size within the image            | Anomaly detection                        | [11] |  
 
 References to research papers are available at the end of this README. For an excellent survey of these techniques, see reference [1].
-
-Examples of images for each of these strategies are provided below.
 
 ### Examples of images
 
@@ -82,7 +80,7 @@ The Tensorflow source code is in directory **src/tf**
 | CutBlur         | `cutblur.py`       | `RandomCutBlur`      |    Layer        |
 | Cut Thumbnail   | `cut_thumbnail.py` | `RandomCutThumbnail` |    Layer        |
 | CutPaste        | `cutpaste.py`      | `RandomCutPaste`     |    Layer        |
-| CutSwap         | `cutswap.py`       | `RandomSwap`         |    Layer        |
+| CutSwap         | `cutswap.py`       | `RandomCutSwap`      |    Layer        |
 
 
 The directory also contains the files shown in the table below.
@@ -95,6 +93,23 @@ The directory also contains the files shown in the table below.
 | train_preproc_layer.py | Training script using preprocessing layers | 
 | train_custom_model.py  | Training script using a custom model       | 
 
+
+### Running scripts
+
+The image viewing and training scripts can be run as follows:
+
+```bash
+cd src/tf
+
+# Run the image viewing script
+python test_images.py
+
+# Run the training script that uses preprocessing layers
+python train_preproc_layer.py
+
+# Run the training script that uses a custom model
+python train_custom_model.py
+```
 
 ### Making results reproducible
 
@@ -113,7 +128,7 @@ np.random.seed(seed)          # NumPy RGN
 tf.random.set_seed(seed)      # TensorFlow RGN
 ```
 
-Seed settings should be done immediately after importing Python packages and Tensorflow, before you import the data augmentation packages (and any other packages you may have).
+Seeds should be set immediately after importing Python packages and Tensorflow, before you import the data augmentation packages (and any other packages you may have).
 
 ## 3. Pytorch Implementation
 
@@ -121,7 +136,7 @@ Seed settings should be done immediately after importing Python packages and Ten
 
 All augmentation capabilities are implemented as V2 transforms. They can be mixed freely with PyTorch V2 transforms, such as color jitter and affine transforms. As they are integrated in the training loop, they run on the GPU.
 
-Note that only V2 transforms run on the GPU, not the transforms that were initially in Pytorch (and still are). These transforms are integrated with data loading, and thus run on the CPU.
+Note that only V2 transforms run on the GPU, not the transforms that were initially in Pytorch (and still are). These transforms are integrated in the data loading pipeline, and thus run on the CPU.
 
 An example of training script is provided that demonstrates the use of the data augmentation transforms, and how they can be mixed with Pytorch V2 transforms.
 
@@ -143,7 +158,7 @@ The Pytorch source code is in directory **src/pt**
 | CutBlur         | `cutblur.py`       | `RandomCutBlur`      |
 | Cut Thumbnail   | `cut_thumbnail.py` | `RandomCutThumbnail` |
 | CutPaste        | `cutpaste.py`      | `RandomCutPaste`     |
-| CutSwap         | `cutswap.py`       | `RandomSwap`         |
+| CutSwap         | `cutswap.py`       | `RandomCutSwap`      |
 
 The directory also contains the files shown in the table below.
 
@@ -153,6 +168,21 @@ The directory also contains the files shown in the table below.
 | argument_utils.py      | Argument checking utilities      | 
 | dataaug_utils.py       | Shared functions                 | 
 | train.py               | Training script                  | 
+
+
+### Running scripts
+
+The image viewing and training script can be run as follows:
+
+```bash
+cd src/pt
+
+# Run the image viewing script
+python test_images.py
+
+# Run the training script
+python train.py
+```
 
 ### Making results reproducible
 
@@ -173,18 +203,18 @@ torch.cuda.manual_seed(seed)      # current GPU RNG
 torch.cuda.manual_seed_all(seed)  # all GPU devices
 ```
 
-Seed settings should be done immediately after importing Python packages and Pytorch, before you import the data augmentation packages (and any other packages you may have).
+Seeds should be set immediately after importing Python packages and Pytorch, before you import the data augmentation packages (and any other packages you may have).
 
 
 ## 4. Visualizing augmented images
 
-The **src\tf** and **src\pt** directories both contain a script named `test_images.py`.
+The **src/tf** and **src/pt** directories both contain a script named `test_images.py`.
 
 These scripts enable you to test the different augmentation capabilities on the Flowers dataset (5 classes for Tensorflow, 102 classes for Pytorch). Original images and augmented images are displayed side-by-side. The images above were created with these scripts.
 
 Using these scripts, you can play with the parameters of the layers, functions or transforms, and visualize the effects.
 
-In the **\_\_main\_\_** part of the scripts, you can customize:
+In the **main()** function of the scripts, you can customize:
 
 - Image size
 - RGB or grayscale images
