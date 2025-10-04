@@ -12,59 +12,50 @@ from dataaug_utils import gen_patch_sizes, gen_patch_mask, mix_augmented_images
 
 class RandomCutMix(v2.Transform):
     """
-    Applies the "Cutout" data augmentation technique to a batch of images.
+    Applies the "CutMix" data augmentation technique to a batch of images.
 
     Reference paper:
-        Terrance DeVries, Graham W. Taylor (2017). “Improved Regularization 
-        of Convolutional Neural Networks with Cutout”.
+        Sangdoo Yun, Dongyoon Han, Seong Joon Oh, Sanghyuk Chun, Junsuk Choe,
+        Youngjoon Yoo (2019). "CutMix: Regularization Strategy to Train Strong
+        Classifiers with Localizable Features."
 
-    For each image in the batch, a square patch centered at a random location
-    is erased and filled with solid color or noise. All the patches have 
-    the same size and are entirely contained inside the images.
+    For each image in the batch:
+        1. Sample a mixing coefficient `lambda` from a Beta distribution.
+        2. Compute the patch size so that its area is a function of lambda, 
+           with an aspect ratio sampled from the specified range.
+        3. Choose a random location for the patch within the image.
+        4. Randomly select another image from the batch.
+        5. Copy the contents of the patch from the other image into the current 
+        image at the chosen location.
+        6. Adjust the labels of the image using `lambda` to reflect the proportion
+        of pixels contributed by both images.
 
-    Patch locations are sampled independently for each image, ensuring variety 
-    across the batch.
+    Lambda values, patch aspect ratios and patch locations are sampled independently 
+    for each image, ensuring variety across the batch.
 
-    Args:
+    By default, the augmented/original image ratio in the output mix is `1.0`. 
+    This may be too aggressive depending on the use case, so you may want to lower it.
+
+    Arguments:
         images:
             Input RGB or grayscale images.
             Supported shapes:
                 [B, H, W, 3]  --> Color images
                 [B, H, W, 1]  --> Grayscale images
                 [B, H, W,]    --> Grayscale images
-            Pixel values are expected to be in the range specified by 
-            the `pixels_range` argument.
 
-        patch_area:
-            A tuple of two floats specifying the range from which patch areas 
-            are sampled. Values must be > 0 and < 1, representing fractions 
-            of the image area.
-            Patch areas are sampled from a Beta distribution. See `alpha` argument.
-
-        patch_aspect_ratio:
-            A tuple of two floats specifying the range from which patch height/width
-            aspect ratios are sampled. Minimum value must be > 0.
-            Patch aspect ratios are sampled from a uniform distribution.
+        labels:
+            Labels for the input images. Must be **one-hot encoded**.
+            Data type should be tf.float32 (will be cast if not).
 
         alpha:
-            A float specifying the alpha parameter of the Beta distribution used
-            to sample patch areas. Set to 0 by default, making the distribution
-            uniform.
+            A positive float specifying the parameter `alpha` of the Beta distribution 
+            from which `lambda` values are sampled. Controls patch size variability.
+            If `alpha` is equal to 1.0 (default value), the distribution is uniform.
 
-        fill_method:
-            A string specifying how to fill the erased patches.  
-            Options:  
-            - 'black': filled with black  
-            - 'gray': filled with mid-gray (128)  
-            - 'white': filled with white  
-            - 'mean_per_channel': filled with the mean color of the image channels  
-            - 'random': filled with random solid colors  
-            - 'noise': filled with random pixel values
-
-        pixels_range:
-            Tuple or list of two numbers specifying the expected min and max
-            pixel values in the input images, e.g. (0, 255), (0, 1), (-1, 1).
-            This ensures the fill values are scaled correctly.
+        patch_aspect_ratio:
+            A tuple of two floats specifying the range from which the height/width 
+            aspect ratios of patches are sampled from. Values must be > 0.
 
         augmentation_ratio:
             A float in the interval [0, 1] specifying the augmented/original
@@ -81,9 +72,13 @@ class RandomCutMix(v2.Transform):
             Augmented images are at random positions in the output mix.
 
     Returns:
-        A tensor of the same shape and dtype as the input images, containing a mix
-        of original and Cutout-augmented images. Pixel values are in the same range
-        as the input images.
+        A tuple `(output_images, output_labels)` where:
+            output_images:
+                A tensor of the same shape and dtype as `images`, containing a
+                mix of original and Cutmix-augmented images.
+            output_labels:
+                A tensor of the same shape as `labels`, containing the
+                correspondingly mixed labels.
     """
 
     def __init__(

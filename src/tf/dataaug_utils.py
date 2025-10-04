@@ -22,10 +22,17 @@ def gen_patch_sizes(
             A tuple of two floats specifying the range from which patch areas
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
+            Patch areas are sampled from a Beta distribution with shape
+            parameters `alpha` and beta=1.0
 
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch 
             height/width aspect ratios are sampled. Values must be > 0.
+            Ratios are sampled from a uniform distribution.
+            
+        alpha:
+            A float greater than 0, the alpha parameter of the Beta
+            distribution used to sample patch areas. 
 
     Returns:
         A tuple of 2 tensors with shape [batch_size]:

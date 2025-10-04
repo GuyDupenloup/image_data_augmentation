@@ -15,12 +15,12 @@ class RandomCutPaste(tf.keras.Layer):
         Chun-Liang Li, Kihyuk Sohn, Jinsung Yoon, and Tomas Pfister (2021).
         "CutPaste: Self-Supervised Learning for Anomaly Detection and Localization."
 
-    For each image in the batch, the function:
-    1. Samples a patch size based on the specified area and aspect ratio ranges.
-    2. Chooses two random locations in the image for a source patch and a target
-       patch, both with the sampled size. The two patches may overlap.
-    3. Copies the contents of the source patch into the target patch, leaving 
-       the source region unchanged.
+    For each image in the batch:
+        1. Sample a patch size based on the specified area and aspect ratio ranges.
+        2. Choose two random locations in the image for a source patch and a target
+           patch, both with the sampled size. The two patches may overlap.
+        3. Copy the contents of the source patch into the target patch, leaving 
+           the source region unchanged.
 
     Patch sizes and locations are sampled independently for each image, ensuring 
     variety across the batch.

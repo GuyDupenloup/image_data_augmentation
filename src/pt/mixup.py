@@ -11,17 +11,20 @@ from dataaug_utils import mix_augmented_images
 
 class RandomMixup(v2.Transform):
     """
-    Applies the "Cutout" data augmentation technique to a batch of images.
+    Applies the "Mixup" data augmentation technique to a batch of images.
 
     Reference paper:
-        Terrance DeVries, Graham W. Taylor (2017). “Improved Regularization 
-        of Convolutional Neural Networks with Cutout”.
+        Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz (2017). 
+        "Mixup: Beyond Empirical Risk Minimization".
 
-    For each image in the batch, a square patch centered at a random location
-    is erased and filled with solid color or noise. All the patches have 
-    the same size and are entirely contained inside the images.
+    For each image in the batch:
+        1. Sample a blending coefficient `lambda` from a Beta distribution.
+        2. Randomly select another image from the batch.
+        3. Blend the two images together using the blending coefficient.
+        4. Adjust the labels of the image using `lambda` to reflect the proportion
+           of pixels contributed by both images.
 
-    Patch locations are sampled independently for each image, ensuring variety 
+    Blending coefficients are sampled independently for each image, ensuring variety 
     across the batch.
 
     Args:
@@ -34,29 +37,10 @@ class RandomMixup(v2.Transform):
             Pixel values are expected to be in the range specified by 
             the `pixels_range` argument.
 
-        patch_area:
-            A float specifying the patch area as a fraction of the image area.
-            Values must be > 0 and < 1.
-
-        fill_method:
-            A string specifying how to fill the erased patches.  
-            Options:  
-            - 'black': filled with black  
-            - 'gray': filled with mid-gray (128)  
-            - 'white': filled with white  
-            - 'mean_per_channel': filled with the mean color of the image channels  
-            - 'random': filled with random solid colors  
-            - 'noise': filled with random pixel values
-
-        pixels_range:
-            Tuple or list of two numbers specifying the expected min and max
-            pixel values in the input images, e.g. (0, 255), (0, 1), (-1, 1).
-            This ensures the fill values are scaled correctly.
-
-        augmentation_ratio:
-            A float in the interval [0, 1] specifying the augmented/original
-            images ratio in the output mix. If set to 0, no images are augmented.
-            If set to 1, all the images are augmented.
+        alpha:
+            A positive float specifying the parameter `alpha` of the Beta distribution 
+            from which blending coefficients `lambda` are sampled.
+            If `alpha` is equal to 1.0 (default value), the distribution is uniform.
 
         bernoulli_mix:
             A boolean specifying the method to use to mix the original and augmented

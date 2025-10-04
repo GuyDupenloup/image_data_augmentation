@@ -16,10 +16,10 @@ class RandomErasing(tf.keras.Layer):
         “Random Erasing Data Augmentation”.
 
     For each image in the batch:
-    1. A patch area and aspect ratio are sampled from the specified ranges.
-    2. The patch is placed at a random location, ensuring that it will be entirely
-       contained inside the image.
-    3. The patch is erased from the image and filled with solid color or noise.
+        1. Sample a patch area and aspect ratio from the specified ranges.
+        2. Place the patch at a random location, ensuring that it will be entirely
+           contained inside the image.
+        3. Erase the patch from the image and fill it with solid color or noise.
 
     Patch areas, aspect ratios and locations are sampled independently for each image,
     ensuring variety across the batch.

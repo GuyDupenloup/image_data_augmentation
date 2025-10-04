@@ -15,18 +15,22 @@ def gen_patch_sizes(
     Samples heights and widths of patches
 
     Arguments:
-        image_shape:
-            The shape of the images (4D tensor).
+        images:
+            The input images.
 
         patch_area:
-            A tuple of two floats specifying the range from which patch areas
+            A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
+            Patch areas are sampled from a Beta distribution with shape parameters
+            `alpha` and beta=1.0. By default, `alpha` is 1.0 making the distribution
+            uniform.
 
         patch_aspect_ratio:
-            A tuple of two floats specifying the range from which patch 
-            height/width aspect ratios are sampled. Values must be > 0.
-
+            A tuple of two floats specifying the range from which patch height/width
+            aspect ratios are sampled. Minimum value must be > 0.
+            Patch aspect ratios are sampled from a uniform distribution.
+            
     Returns:
         A tuple of 2 tensors with shape [batch_size]:
             `(patch_height, patch_width)`. 

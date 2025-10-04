@@ -17,11 +17,10 @@ class RandomHideAndSeek(tf.keras.Layer):
         and Beyond”.
 
     For each image in the batch:
-    - The image is divided into a regular grid of patches.
-    - A random number of patches is sampled from the specified range.
-    - That number of patches are erased from the image at random 
-      locations in the grid.
-    - The erased patches are filled with solid color or noise.
+        1. Divide the image into a regular grid of patches.
+        2. Sample a number of patches from the specified range.
+        3. Erase that number of patches from the image at random locations in the grid.
+        4. Fill the erased patches with solid color or noise.
     
     The number of patches to erase and their locations in the grid are sampled
     independently for each image, ensuring variety across the batch.

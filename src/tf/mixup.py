@@ -30,62 +30,50 @@ def random_mixup(
     ) -> tf.Tensor:
 
     """
-    Applies the "Mixup" data augmentation technique to a batch of images.
+     Applies the "Mixup" data augmentation technique to a batch of images.
 
     Reference paper:
-        Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz (2017).
+        Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz (2017). 
         "Mixup: Beyond Empirical Risk Minimization".
 
-    For each image in the batch, the function:
-        1. Samples a mixing factor `lambda` from a Beta distribution.
-        2. Randomly selects another image from the batch.
-        3. Blends the two images in proportions determined by `lambda`.
-        4. Update the labels of the image to reflect the relative contributions
-           of both images.
- 
-    Lambda values are sampled independently for each image, ensuring variety
+    For each image in the batch:
+        1. Sample a blending coefficient `lambda` from a Beta distribution.
+        2. Randomly select another image from the batch.
+        3. Blend the two images together using the blending coefficient.
+        4. Adjust the labels of the image using `lambda` to reflect the proportion
+           of pixels contributed by both images.
+
+    Blending coefficients are sampled independently for each image, ensuring variety 
     across the batch.
 
-    Arguments:
+    Args:
         images:
             Input RGB or grayscale images.
             Supported shapes:
                 [B, H, W, 3]  --> Color images
                 [B, H, W, 1]  --> Grayscale images
                 [B, H, W,]    --> Grayscale images
-
-        labels:
-            Labels for the input images. Must be **one-hot encoded**.
-            Data type should be tf.float32 (will be cast if not).
+            Pixel values are expected to be in the range specified by 
+            the `pixels_range` argument.
 
         alpha:
             A positive float specifying the parameter `alpha` of the Beta distribution 
-            from which `lambda` values are sampled. Controls blending variability.
+            from which blending coefficients `lambda` are sampled.
             If `alpha` is equal to 1.0 (default value), the distribution is uniform.
 
-        augmentation_ratio:
-            A float in the range [0, 1] specifying the proportion of images in
-            the batch to be replaced by their Mixup-augmented counterparts.
-            - 0.0 means no Mixup is applied.
-            - 1.0 means Mixup is applied to every image in the batch.
-
         bernoulli_mix:
-            A boolean controlling whether the proportion of augmented images
-            should vary from batch to batch.
-            - If False, the augmented/original ratio is exactly equal to
-              `augmentation_ratio` in every batch.
-            - If True, the number of augmented images is drawn from a Bernoulli
-              distribution with expected value equal to `augmentation_ratio`.
+            A boolean specifying the method to use to mix the original and augmented
+            images in the output images:
+              - False: the augmented/original ratio is equal to `augmentation_ratio`
+                for every batch.
+              - True: the augmented/original ratio varies stochastically from batch
+                to batch with an expectation equal to `augmentation_ratio`.
             Augmented images are at random positions in the output mix.
 
     Returns:
-        A tuple `(output_images, output_labels)` where:
-            output_images:
-                A tensor of the same shape and dtype as `images`, containing a
-                mix of original and Mixup-augmented images.
-            output_labels:
-                A tensor of the same shape as `labels`, containing the
-                correspondingly mixed labels.
+        A tensor of the same shape and dtype as the input images, containing a mix
+        of original and Cutout-augmented images. Pixel values are in the same range
+        as the input images.
     """
 
     # Check the arguments passed to the function

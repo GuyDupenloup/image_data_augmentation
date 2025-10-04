@@ -19,10 +19,10 @@ class RandomErasing(v2.Transform):
         "Random Erasing Data Augmentation".
 
     For each image in the batch:
-    1. A patch area and aspect ratio are sampled from the specified ranges.
-    2. The patch is placed at a random location, ensuring that it will be entirely
-       contained inside the image.
-    3. The patch is erased from the image and filled with solid color or noise.
+        1. Sample a patch area and aspect ratio from the specified ranges.
+        2. Place the patch at a random location, ensuring that it will be entirely
+           contained inside the image.
+        3. Erase the patch from the image and fill it with solid color or noise.
 
     Patch areas, aspect ratios and locations are sampled independently for each image,
     ensuring variety across the batch.
@@ -42,8 +42,7 @@ class RandomErasing(v2.Transform):
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
             Patch areas are sampled from a Beta distribution with shape parameters
-            `alpha` and beta=1.0. By default, `alpha` is 1.0 making the distribution
-            uniform.
+            `alpha` and beta=1.0.
             
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
@@ -52,7 +51,7 @@ class RandomErasing(v2.Transform):
 
         alpha:
             A float specifying the alpha parameter of the Beta distribution used
-            to sample patch areas. Set to 0 by default, making the distribution
+            to sample patch areas. Set to 1.0 by default, making the distribution
             uniform.
 
         fill_method:

@@ -24,11 +24,11 @@ class RandomGridMask(tf.keras.Layer):
     the masked areas are erased and filled with a solid color or noise.
 
     For each image in the batch:
-    1. A unit side length is sampled from the specified range.
-    2. A grid is generated using this unit side length.
-    3. Random offsets sampled in the range [0, unit_side_length] are applied to the grid
-       to shift it in both directions.
-    4. The grid is applied to the image.
+        1. Sample a unit side length from the specified range.
+        2. Generate a grid using this unit side length.
+        3. Sample random offsets from [0, unit_side_length] and apply them to the grid
+           to shift it in both directions.
+        4. Apply the grid to the image.
 
     Unit side lengths and grid offsets are sampled independently for each image, ensuring 
     variety across the batch.

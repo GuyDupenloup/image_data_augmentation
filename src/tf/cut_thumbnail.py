@@ -16,9 +16,9 @@ class RandomCutThumbnail(tf.keras.Layer):
         Ming Liu (2021). "Cut-thumbnail: A novel data augmentation for convolutional
         neural network".
 
-    For each image in the batch, the function:
-      1. Resizes the image to a smaller size to create a thumbnail.
-      2. Pastes the thumbnail into the original image at a random location.
+    For each image in the batch:
+        1. Resize the image to a smaller size to create a thumbnail.
+        2. Paste the thumbnail into the original image at a random location.
     All the thumbnails have the same area, specified as a fraction of the image area,
     and have the same aspect ratio as the images.
 

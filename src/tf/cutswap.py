@@ -15,11 +15,11 @@ class RandomCutSwap(tf.keras.Layer):
         Jianjian Qin, Chunzhi Gu, Jun Yu, and Chao Zhang (2013). "Multilevel 
         Saliency-Guided Self-Supervised Learning for Image Anomaly Detection"
 
-    For each image in the batch, the function:
-    1. Samples a patch size based on the specified area and aspect ratio ranges.
-    2. Chooses random locations in the image for two patches of the sampled size.
+    For each image in the batch:
+    1. Sample a patch size based on the specified area and aspect ratio ranges.
+    2. Choose random locations in the image for two patches of the sampled size.
        The two patches may overlap.
-    3. Swaps the contents of the two patches.
+    3. Swap the contents of the two patches.
 
     Patch sizes and locations are sampled independently for each image, ensuring 
     variety across the batch.

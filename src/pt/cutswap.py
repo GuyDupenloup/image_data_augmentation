@@ -18,11 +18,11 @@ class RandomCutSwap(v2.Transform):
         Jianjian Qin, Chunzhi Gu, Jun Yu, and Chao Zhang (2013). "Multilevel 
         Saliency-Guided Self-Supervised Learning for Image Anomaly Detection"
 
-    For each image in the batch, the function:
-    1. Samples a patch size based on the specified area and aspect ratio ranges.
-    2. Chooses random locations in the image for two patches of the sampled size.
-       The two patches may overlap.
-    3. Swaps the contents of the two patches.
+    For each image in the batch:
+        1. Sample a patch size based on the specified area and aspect ratio ranges.
+        2. Choose random locations in the image for two patches of the sampled size.
+           The two patches may overlap.
+        3. Swap the contents of the two patches.
 
     Patch sizes and locations are sampled independently for each image, ensuring 
     variety across the batch.
@@ -43,8 +43,7 @@ class RandomCutSwap(v2.Transform):
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
             Patch areas are sampled from a Beta distribution with shape parameters
-            `alpha` and beta=1.0. By default, `alpha` is 1.0 making the distribution
-            uniform.
+            `alpha` and beta=1.0.
             
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
@@ -53,7 +52,7 @@ class RandomCutSwap(v2.Transform):
 
         alpha:
             A float specifying the alpha parameter of the Beta distribution used
-            to sample patch areas. Set to 0 by default, making the distribution
+            to sample patch areas. Set to 1.0 by default, making the distribution
             uniform.
 
         augmentation_ratio:

@@ -19,11 +19,11 @@ class RandomCutBlur(v2.Transform):
         for Image Super-Resolution: : A comprehensive analysis and a new strategy".
 
     For each image in the batch:
-    1. A low-resolution version of the image is created by downscaling and then
-       upscaling it back to the original size.
-    2. A random rectangular patch is cropped from the low-resolution image.
-    3. The patch is pasted at the same location in the original image, producing
-       an image identical to the original except for the blurred region.
+        1. Create a low-resolution version of the image by downscaling and then
+           upscaling it back to the original size.
+        2. Crop a random rectangular patch from the low-resolution image.
+        3. Paste the patch at the same location in the original image, producing
+           an image identical to the original except for the blurred region.
 
     Patch sizes and locations are sampled independently for each image, ensuring 
     variety across the batch.
@@ -44,8 +44,7 @@ class RandomCutBlur(v2.Transform):
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
             Patch areas are sampled from a Beta distribution with shape parameters
-            `alpha` and beta=1.0. By default, `alpha` is 1.0 making the distribution
-            uniform.
+            `alpha` and beta=1.0.
             
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
@@ -54,7 +53,7 @@ class RandomCutBlur(v2.Transform):
 
         alpha:
             A float specifying the alpha parameter of the Beta distribution used
-            to sample patch areas. Set to 0 by default, making the distribution
+            to sample patch areas. Set to 1.0 by default, making the distribution
             uniform.
 
         blur_factor:

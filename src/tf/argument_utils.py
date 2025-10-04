@@ -21,10 +21,9 @@ def check_argument(
         context:
             A dictionary providing context information for error messages.
             Must contain:
-            - 'arg_name': a string, the name of the transform the argument
-               was passed to.
-            - 'caller_name': a string, the name of the calling function
-              that passed the argument.
+            - 'arg_name': a string, the name of the argument.
+            - 'caller_name': a string, the name of the caller that passed
+              the argument.
 
         constraints:
             A dictionary specifying the constraints to verify with the
@@ -67,7 +66,7 @@ def check_argument(
     Examples
     --------
     >>> # Validate a single integer or float in the interval [0, 1]
-    >>> check_dataaug_argument(
+    >>> check_argument(
     ...     0.5,
     ...     context={'arg_name': 'augmentation_ratio', 'caller_name': 'cutout'},
     ...     constraints={'min_val': ('>=', 0), 'max_val': ('<=', 1)}
@@ -75,14 +74,14 @@ def check_argument(
 
     >>> # Validate a tuple of 2 floats greater than 0,
     >>> # 2nd tuple value greater than the 1st one
-    >>> check_dataaug_argument(
+    >>> check_argument(
     ...     (0.3, 0.7),
     ...     context={'area_ratio_range': 'arg', 'caller_name': 'random_erasing'},
     ...     constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0)}
     ... )
 
     >>> # Validate a tuple of 2 integers greater than 0, no tuple ordering constraint
-    >>> check_dataaug_argument(
+    >>> check_argument(
     ...     (8, 8),
     ...     context={'arg_name': 'grid_size', 'caller_name': 'hide_and_seek'},
     ...     constraints={'format': 'tuple', 'tuple_ordering': 'None', 'data_type: 'int', min_val': ('>', 0)}

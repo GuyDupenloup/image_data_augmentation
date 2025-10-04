@@ -35,15 +35,15 @@ def random_cutmix(
         Youngjoon Yoo (2019). "CutMix: Regularization Strategy to Train Strong
         Classifiers with Localizable Features."
 
-    For each image in the batch, the function:
-        1. Samples a mixing coefficient `lambda` from a Beta distribution.
-        2. Computes the patch size so that its area is a function of lambda, 
+    For each image in the batch:
+        1. Sample a mixing coefficient `lambda` from a Beta distribution.
+        2. Compute the patch size so that its area is a function of lambda, 
            with an aspect ratio sampled from the specified range.
-        3. Chooses a random location for the patch within the image.
-        4. Randomly selects another image from the batch.
-        5. Copies the contents of the patch from the other image into the current 
+        3. Choose a random location for the patch within the image.
+        4. Randomly select another image from the batch.
+        5. Copy the contents of the patch from the other image into the current 
         image at the chosen location.
-        6. Adjusts the labels of the image using `lambda` to reflect the proportion
+        6. Adjust the labels of the image using `lambda` to reflect the proportion
         of pixels contributed by the other image.
 
     Lambda values, patch aspect ratios and patch locations are sampled independently 
