@@ -38,17 +38,10 @@ class RandomErasing(tf.keras.Layer):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
-            Patch areas are sampled from a Beta distribution with shape parameters
-            `alpha` and beta=1.0.
 
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
             aspect ratios are sampled. Minimum value must be > 0.
-            
-        alpha:
-            A float specifying the alpha parameter of the Beta distribution used
-            to sample patch areas. Set to 0 by default, making the distribution
-            uniform.
 
         fill_method:
             A string specifying how to fill the erased patches.  
@@ -88,7 +81,6 @@ class RandomErasing(tf.keras.Layer):
     def __init__(self,
         patch_area: tuple[float, float] = (0.05, 0.3),
         patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
-        alpha: float = 1.0,
         fill_method: str = 'black',
         pixels_range: tuple[float, float] = (0, 1),
         augmentation_ratio: float = 1.0,
@@ -100,7 +92,6 @@ class RandomErasing(tf.keras.Layer):
         self.layer_name = 'RandomErasing'
         self.patch_area = patch_area
         self.patch_aspect_ratio = patch_aspect_ratio
-        self.alpha = alpha
         self.fill_method = fill_method
         self.pixels_range = pixels_range
         self.augmentation_ratio = augmentation_ratio
@@ -113,7 +104,7 @@ class RandomErasing(tf.keras.Layer):
         """
         Checks the arguments passed to the `random_erasing` function
         """
-        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.alpha, self.layer_name)
+        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.layer_name)
         check_fill_method_arg(self.fill_method, self.layer_name)
         check_pixels_range_args(self.pixels_range, self.layer_name)
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.layer_name)
@@ -133,7 +124,7 @@ class RandomErasing(tf.keras.Layer):
 
         # Sample patch sizes and locations, then generate a boolean mask
         # (True inside patches, False outside)
-        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio)
         patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Generate color contents of patches
@@ -158,7 +149,6 @@ class RandomErasing(tf.keras.Layer):
             'layer_name': self.layer_name,
             'patch_area': self.patch_area,
             'patch_aspect_ratio': self.patch_aspect_ratio,
-            'alpha': self.alpha,
             'fill_method': self.fill_method,
             'pixels_range': self.pixels_range,
             'augmentation_ratio': self.augmentation_ratio,

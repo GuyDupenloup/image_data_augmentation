@@ -21,7 +21,7 @@ class RandomMixup(v2.Transform):
         1. Sample a blending coefficient `lambda` from a Beta distribution.
         2. Randomly select another image from the batch.
         3. Blend the two images together using the blending coefficient.
-        4. Adjust the labels of the image using `lambda` to reflect the proportion
+        4. Update the label of the image using `lambda` to reflect the proportion
            of pixels contributed by both images.
 
     Blending coefficients are sampled independently for each image, ensuring variety 

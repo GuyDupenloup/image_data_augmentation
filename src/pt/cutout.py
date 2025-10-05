@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torchvision.transforms import v2
 from typing import Tuple, Union
 
-from argument_utils import check_argument, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
+from argument_utils import check_patch_sampling_args, check_augment_mix_args, check_fill_method_arg, check_pixels_range_args
 from dataaug_utils import gen_patch_sizes, gen_patch_mask, gen_patch_contents, mix_augmented_images, rescale_pixel_values
 
 
@@ -81,7 +81,7 @@ class RandomCutout(v2.Transform):
         fill_method: str = 'black',
         pixels_range: Tuple[float, float] = (0, 1),
         augmentation_ratio: float = 1.0,
-        bernoulli_mix: bool = False,
+        bernoulli_mix: bool = False
     ):
         super().__init__()
 
@@ -100,11 +100,7 @@ class RandomCutout(v2.Transform):
         """
         Checks that the arguments passed to the transform are valid
         """
-        check_argument(
-            self.patch_area,
-            context={'arg_name': 'patch_area', 'caller_name' : self.transform_name},
-            constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
-        )
+        check_patch_sampling_args(self.patch_area, 1.0, self.transform_name)
         check_fill_method_arg(self.fill_method, self.transform_name)
         check_pixels_range_args(self.pixels_range, self.transform_name)
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
@@ -124,7 +120,7 @@ class RandomCutout(v2.Transform):
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
         # Calculate patch sizes (same for all images) and generate boolean mask (True inside patches)
-        patch_sizes = gen_patch_sizes(images, patch_area=self.patch_area, patch_aspect_ratio=1.0, alpha=1.0)
+        patch_sizes = gen_patch_sizes(images, patch_area=self.patch_area, patch_aspect_ratio=1.0)
         patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Generate color contents of patches

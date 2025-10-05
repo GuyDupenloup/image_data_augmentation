@@ -40,7 +40,7 @@ def random_mixup(
         1. Sample a blending coefficient `lambda` from a Beta distribution.
         2. Randomly select another image from the batch.
         3. Blend the two images together using the blending coefficient.
-        4. Adjust the labels of the image using `lambda` to reflect the proportion
+        4. Update the label of the image using `lambda` to reflect the proportion
            of pixels contributed by both images.
 
     Blending coefficients are sampled independently for each image, ensuring variety 
@@ -57,9 +57,10 @@ def random_mixup(
             the `pixels_range` argument.
 
         alpha:
-            A positive float specifying the parameter `alpha` of the Beta distribution 
-            from which blending coefficients `lambda` are sampled.
-            If `alpha` is equal to 1.0 (default value), the distribution is uniform.
+            A positive float specifying the shape parameter `alpha` of the Beta 
+            distribution from which blending coefficients `lambda` are sampled.
+            The shape parameter 'beta' is equal to 1.0
+            If `alpha` is set to 1.0 (default value), the distribution is uniform.
 
         bernoulli_mix:
             A boolean specifying the method to use to mix the original and augmented
@@ -101,7 +102,7 @@ def random_mixup(
     lambda_vals = tf.reshape(lambda_vals, [batch_size, 1, 1, 1])
     images_aug = lambda_vals * images + (1 - lambda_vals) * shuffled_images
 
-    # Weigh the labels
+    # Update labels
     lambda_vals =lambda_vals[:, None]   # For broadcasting
     labels = tf.cast(labels, tf.float32)
     labels_aug = lambda_vals * labels + (1.0 - lambda_vals) * shuffled_labels

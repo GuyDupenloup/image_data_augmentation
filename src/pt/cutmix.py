@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from torchvision.transforms import v2
 
-from argument_utils import check_patch_sampling_args, check_augment_mix_args
+from argument_utils import check_argument, check_patch_sampling_args, check_augment_mix_args
 from dataaug_utils import gen_patch_sizes, gen_patch_mask, mix_augmented_images
 
 
@@ -21,14 +21,13 @@ class RandomCutMix(v2.Transform):
 
     For each image in the batch:
         1. Sample a mixing coefficient `lambda` from a Beta distribution.
-        2. Compute the patch size so that its area is a function of lambda, 
-           with an aspect ratio sampled from the specified range.
-        3. Choose a random location for the patch within the image.
-        4. Randomly select another image from the batch.
-        5. Copy the contents of the patch from the other image into the current 
-        image at the chosen location.
-        6. Adjust the labels of the image using `lambda` to reflect the proportion
-        of pixels contributed by both images.
+        2. Compute a patch size using `lambda` as a fraction of the image size,
+           and an aspect ratio sampled from the specified range.
+        3. Choose a random location for the patch.
+        4. Randomly select another image from the batch and crop the patch from it.
+        5. Paste the patch into the image.
+        6. Update the label of the image using `lambda` to reflect the proportion
+           of pixels contributed by both images.
 
     Lambda values, patch aspect ratios and patch locations are sampled independently 
     for each image, ensuring variety across the batch.
@@ -106,7 +105,12 @@ class RandomCutMix(v2.Transform):
         """
         Checks that the arguments passed to the transform are valid
         """
-        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.alpha, self.transform_name)
+        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.transform_name)
+        check_argument(
+            self.alpha,
+            context={'arg_name': 'alpha', 'caller_name': self.transform_name},
+            constraints={'min_val': ('>', 0)}
+        )
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 

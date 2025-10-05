@@ -40,18 +40,10 @@ class RandomCutBlur(tf.keras.Layer):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
-            Patch areas are sampled from a Beta distribution with shape parameters
-            `alpha` and beta=1.0.
             
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
             aspect ratios are sampled. Minimum value must be > 0.
-            Patch aspect ratios are sampled from a uniform distribution.
-
-        alpha:
-            A float specifying the alpha parameter of the Beta distribution used
-            to sample patch areas. Set to 0 by default, making the distribution
-            uniform.
 
         blur_factor:
             A float specifying the size of the low-resolution images (they all 
@@ -81,7 +73,6 @@ class RandomCutBlur(tf.keras.Layer):
     def __init__(self,
         patch_area: tuple[float, float] = (0.05, 0.3),
         patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
-        alpha: float = 1.0,
         blur_factor: float = 0.1,
         augmentation_ratio: float = 1.0,
         bernoulli_mix: bool = False,
@@ -92,7 +83,6 @@ class RandomCutBlur(tf.keras.Layer):
         self.layer_name = 'RandomCutBlur'
         self.patch_area = patch_area
         self.patch_aspect_ratio = patch_aspect_ratio
-        self.alpha = alpha
         self.blur_factor = blur_factor
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
@@ -101,7 +91,7 @@ class RandomCutBlur(tf.keras.Layer):
 
 
     def _check_layer_args(self):
-        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.alpha, self.layer_name)
+        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.layer_name)
         check_argument(
             self.blur_factor,
             context={'arg_name': 'blur_factor', 'caller_name': self.layer_name},
@@ -131,7 +121,7 @@ class RandomCutBlur(tf.keras.Layer):
 
         # Sample patch sizes and locations, then generate a boolean mask
         # (True inside patches, False outside)
-        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio)
         patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Erase patches from the images and fill them with the low-res images
@@ -152,7 +142,6 @@ class RandomCutBlur(tf.keras.Layer):
             'layer_name': self.layer_name,
             'patch_area': self.patch_area,
             'patch_aspect_ratio': self.patch_aspect_ratio,
-            'alpha': self.alpha,
             'blur_factor': self.blur_factor,
             'augmentation_ratio': self.augmentation_ratio,
             'bernoulli_mix': self.bernoulli_mix

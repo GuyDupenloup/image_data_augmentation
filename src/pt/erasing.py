@@ -41,24 +41,17 @@ class RandomErasing(v2.Transform):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
-            Patch areas are sampled from a Beta distribution with shape parameters
-            `alpha` and beta=1.0.
             
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
             aspect ratios are sampled. Minimum value must be > 0.
             Patch aspect ratios are sampled from a uniform distribution.
 
-        alpha:
-            A float specifying the alpha parameter of the Beta distribution used
-            to sample patch areas. Set to 1.0 by default, making the distribution
-            uniform.
-
         fill_method:
             A string specifying how to fill the erased patches.  
             Options:  
             - 'black': filled with black  
-            - 'gray': filled with mid-gray (128)  
+            - 'gray': filled with mid-gray (128)
             - 'white': filled with white  
             - 'mean_per_channel': filled with the mean color of the image channels  
             - 'random': filled with random solid colors  
@@ -93,7 +86,6 @@ class RandomErasing(v2.Transform):
         self,
         patch_area: tuple[float, float] = (0.05, 0.3),
         patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
-        alpha: float = 1.0,
         fill_method: str = 'black',
         pixels_range: Tuple[float, float] = (0, 1),
         augmentation_ratio: float = 1.0,
@@ -104,7 +96,6 @@ class RandomErasing(v2.Transform):
         self.transform_name = 'RandomErasing'
         self.patch_area = patch_area
         self.patch_aspect_ratio = patch_aspect_ratio
-        self.alpha = alpha
         self.fill_method = fill_method
         self.pixels_range = pixels_range
         self.augmentation_ratio = augmentation_ratio
@@ -117,7 +108,7 @@ class RandomErasing(v2.Transform):
         """
         Checks that the arguments passed to the transform are valid
         """
-        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.alpha, self.transform_name)
+        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.transform_name)
         check_fill_method_arg(self.fill_method, self.transform_name)
         check_fill_method_arg(self.fill_method, self.transform_name)
         check_pixels_range_args(self.pixels_range, self.transform_name)
@@ -136,7 +127,7 @@ class RandomErasing(v2.Transform):
         images = rescale_pixel_values(images, self.pixels_range, (0, 255), dtype=torch.int32)
 
         # Get patch sizes and generate boolean mask (True inside patches)
-        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio)
         patch_mask, _ = gen_patch_mask(images, patch_sizes)
 
         # Generate color contents of patches

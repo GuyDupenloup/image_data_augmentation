@@ -130,8 +130,8 @@ class RandomGridMask(v2.Transform):
             context={'arg_name': 'masked_ratio', 'caller_name' : self.transform_name},
             constraints={'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
         )
-        check_fill_method_arg(self.fill_method, 'RandomGridMask')
-        check_pixels_range_args(self.pixels_range, 'RandomGridMask')
+        check_fill_method_arg(self.fill_method, self.transform_name)
+        check_pixels_range_args(self.pixels_range, self.transform_name)
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 

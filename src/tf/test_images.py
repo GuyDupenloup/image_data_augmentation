@@ -68,7 +68,6 @@ def _augment_images(images, labels, function):
         erasing = RandomErasing(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
-            alpha=1.0,
             fill_method='black'
         )
         images_aug = erasing(images)
@@ -93,7 +92,6 @@ def _augment_images(images, labels, function):
         cutblur = RandomCutBlur(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
-            alpha=1.0,
             blur_factor=0.2
         )
         images_aug = cutblur(images)
@@ -101,17 +99,14 @@ def _augment_images(images, labels, function):
     elif function == 'RandomCutPaste':
         cutpaste = RandomCutPaste(
             patch_area=(0.1, 0.3),
-            patch_aspect_ratio=(0.3, 3.0),
-            alpha=1.0,
-
+            patch_aspect_ratio=(0.3, 3.0)
         )
         images_aug = cutpaste(images)
 
     elif function == 'RandomCutSwap':
         cutsawp = RandomCutSwap(
             patch_area=(0.1, 0.3),
-            patch_aspect_ratio=(0.3, 2.0),
-            alpha=1.0,
+            patch_aspect_ratio=(0.3, 2.0)
         )
         images_aug = cutsawp(images)
 
@@ -125,8 +120,8 @@ def _augment_images(images, labels, function):
         images_aug, _ = random_cutmix(
             images,
             labels,
-            alpha=1.0,
             patch_aspect_ratio=(0.3, 3.0),
+            alpha=1.0
         )
 
     elif function == 'random_mixup':
@@ -173,15 +168,15 @@ def main():
 
     test_list = [
         'RandomCutout', 
-        # 'RandomErasing',
-        # 'RandomHideAndSeek',
-        # 'RandomGridMask', 
-        # 'RandomCutBlur',
-        # 'RandomCutPaste',
-        # 'RandomCutSwap', 
-        # 'RandomCutThumbnail',
-        # 'random_cutmix',
-        # 'random_mixup'
+        'RandomErasing',
+        'RandomHideAndSeek',
+        'RandomGridMask', 
+        'RandomCutBlur',
+        'RandomCutPaste',
+        'RandomCutSwap', 
+        'RandomCutThumbnail',
+        'random_cutmix',
+        'random_mixup'
     ]
 
     _run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)

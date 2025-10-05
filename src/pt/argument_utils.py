@@ -250,22 +250,18 @@ def check_augment_mix_args(ratio_arg, bernoulli_arg, caller_name):
             )
 
 # Check the arguments used in patch sampling
-def check_patch_sampling_args(patch_area, patch_aspect_ratio, alpha, caller_name):
+def check_patch_sampling_args(patch_area, patch_aspect_ratio, caller_name):
     check_argument(
         patch_area,
         context={'arg_name': 'patch_area', 'caller_name': caller_name},
-        constraints={'format': 'tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
+        constraints={'format': 'number_or_tuple', 'data_type': 'float', 'min_val': ('>', 0), 'max_val': ('<', 1)}
     )
     check_argument(
         patch_aspect_ratio,
         context={'arg_name': 'patch_aspect_ratio', 'caller_name': caller_name},
-        constraints={'format': 'tuple', 'min_val': ('>', 0)}
+        constraints={'format': 'number_or_tuple', 'min_val': ('>', 0)}
     )
-    check_argument(
-        alpha,
-        context={'arg_name': 'alpha', 'caller_name': caller_name},
-        constraints={'min_val': ('>', 0)}
-    )
+
 
 # Check patch fill method
 def check_fill_method_arg(arg, caller_name):

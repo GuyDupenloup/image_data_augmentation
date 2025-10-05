@@ -43,18 +43,11 @@ class RandomCutPaste(v2.Transform):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
-            Patch areas are sampled from a Beta distribution with shape parameters
-            `alpha` and beta=1.0.
              
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
             aspect ratios are sampled. Minimum value must be > 0.
             Patch aspect ratios are sampled from a uniform distribution.
-
-        alpha:
-            A float specifying the alpha parameter of the Beta distribution used
-            to sample patch areas. Set to 1.0 by default, making the distribution
-            uniform.
 
         augmentation_ratio:
             A float in the interval [0, 1] specifying the augmented/original
@@ -79,7 +72,6 @@ class RandomCutPaste(v2.Transform):
         self,
         patch_area: tuple[float, float] = (0.05, 0.3),
         patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
-        alpha=1.0,
         augmentation_ratio: float = 1.0,
         bernoulli_mix: bool = False
     ):
@@ -88,7 +80,6 @@ class RandomCutPaste(v2.Transform):
         self.transform_name = 'RandomCutPaste'
         self.patch_area = patch_area
         self.patch_aspect_ratio = patch_aspect_ratio
-        self.alpha = alpha
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
@@ -99,7 +90,7 @@ class RandomCutPaste(v2.Transform):
         """
         Checks that the arguments passed to the transform are valid
         """
-        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.alpha, self.transform_name)
+        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.transform_name)
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.transform_name)
 
 
@@ -113,7 +104,7 @@ class RandomCutPaste(v2.Transform):
             images = images.unsqueeze(1)
 
         # Sample patches sizes
-        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio)
 
         # Generate boolean mask for source patches (True inside patches)
         source_mask, _ = gen_patch_mask(images, patch_sizes)

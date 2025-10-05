@@ -3,7 +3,7 @@
 
 import tensorflow as tf
 
-from argument_utils import check_patch_sampling_args, check_augment_mix_args
+from argument_utils import check_argument, check_patch_sampling_args, check_augment_mix_args
 from dataaug_utils import gen_patch_sizes, gen_patch_mask, mix_augmented_images
 
 
@@ -12,7 +12,12 @@ def _check_function_args(alpha, patch_area, patch_aspect_ratio, augmentation_rat
     Checks the arguments passed to the `random_cutmix` function
     """
     function_name = 'random_cutmix'
-    check_patch_sampling_args(patch_area, patch_aspect_ratio, alpha, function_name)
+    check_argument(
+        alpha,
+        context={'arg_name': 'alpha', 'caller_name': function_name},
+        constraints={'min_val': ('>', 0)}
+    )
+    check_patch_sampling_args(patch_area, patch_aspect_ratio, function_name)
     check_augment_mix_args(augmentation_ratio, bernoulli_mix, function_name)
 
 
@@ -37,14 +42,13 @@ def random_cutmix(
 
     For each image in the batch:
         1. Sample a mixing coefficient `lambda` from a Beta distribution.
-        2. Compute the patch size so that its area is a function of lambda, 
-           with an aspect ratio sampled from the specified range.
-        3. Choose a random location for the patch within the image.
-        4. Randomly select another image from the batch.
-        5. Copy the contents of the patch from the other image into the current 
-        image at the chosen location.
-        6. Adjust the labels of the image using `lambda` to reflect the proportion
-        of pixels contributed by the other image.
+        2. Compute a patch size using `lambda` as a fraction of the image size,
+           and an aspect ratio sampled from the specified range.
+        3. Choose a random location for the patch.
+        4. Randomly select another image from the batch and crop the patch from it.
+        5. Paste the patch into the image.
+        6. Update the label of the image using `lambda` to reflect the proportion
+           of pixels contributed by both images.
 
     Lambda values, patch aspect ratios and patch locations are sampled independently 
     for each image, ensuring variety across the batch.
@@ -65,9 +69,10 @@ def random_cutmix(
             Data type should be tf.float32 (will be cast if not).
 
         alpha:
-            A positive float specifying the parameter `alpha` of the Beta distribution 
-            from which `lambda` values are sampled. Controls patch size variability.
-            If `alpha` is equal to 1.0 (default value), the distribution is uniform.
+            A positive float specifying the shape parameter `alpha` of the Beta 
+            distribution from which mixing coefficients `lambda` are sampled.
+            The shape parameter 'beta' is equal to 1.0
+            If `alpha` is set to 1.0 (default value), the distribution is uniform.
 
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which the height/width 

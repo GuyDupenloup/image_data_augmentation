@@ -21,8 +21,8 @@ class RandomCutThumbnail(v2.Transform):
         neural network".
 
     For each image in the batch:
-      1. Resize the image to a smaller size to create a thumbnail.
-      2. Paste the thumbnail into the original image at a random location.
+        1. Resize the image to a smaller size to create a thumbnail.
+        2. Paste the thumbnail into the original image at a random location.
     All the thumbnails have the same area, specified as a fraction of the image area,
     and have the same aspect ratio as the images.
 

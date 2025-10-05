@@ -9,30 +9,31 @@ def gen_patch_sizes(
     images: tf.Tensor,
     patch_area: tuple[float, float],
     patch_aspect_ratio: tuple[float, float],
-    alpha: float
+    alpha: float = 1.0
 ) -> tf.Tensor:
     """
     Samples heights and widths of patches
 
     Arguments:
-        image_shape:
-            The shape of the images (4D tensor).
+        images:
+            The input images.
 
         patch_area:
             A tuple of two floats specifying the range from which patch areas
-            are sampled. Values must be > 0 and < 1, representing fractions 
-            of the image area.
-            Patch areas are sampled from a Beta distribution with shape
-            parameters `alpha` and beta=1.0
+            are sampled. Values must be > 0 and < 1.
+            A single float may be used instead of a tuple. In this case, the patch
+            area is equal to `patch_area` for all the images.
 
         patch_aspect_ratio:
-            A tuple of two floats specifying the range from which patch 
-            height/width aspect ratios are sampled. Values must be > 0.
-            Ratios are sampled from a uniform distribution.
-            
+            A tuple of two floats specifying the range from which patch height/width
+            aspect ratios are sampled. Values must be > 0.
+            A single float may be used instead of a tuple. In this case, the aspect ratio
+            is equal to `patch_aspect_ratio` for all the images.
+
         alpha:
-            A float greater than 0, the alpha parameter of the Beta
-            distribution used to sample patch areas. 
+            A float greater than 0, the shape parameter of the Beta distribution
+            used to sample patch area. If `alpha` is equal to 1.0 (default), 
+            the distribution is uniform.
 
     Returns:
         A tuple of 2 tensors with shape [batch_size]:
@@ -43,13 +44,16 @@ def gen_patch_sizes(
     batch_size, img_height, img_width = tf.unstack(image_shape[:3])
 
     if isinstance(patch_area, (tuple, list)):
-        # Sample area fractions from Beta distribution
-        batch_size = image_shape[0]
-        gamma1 = tf.random.gamma([batch_size], alpha, dtype=tf.float32)
-        gamma2 = tf.random.gamma([batch_size], alpha, dtype=tf.float32)
-        lambda_vals = gamma1 / (gamma1 + gamma2)
-        # Linearly rescale to the specified area range (this does not change the distribution)
-        area_fraction = patch_area[0] + lambda_vals * (patch_area[1] - patch_area[0])
+        if alpha != 1.0:
+            # Sample lambda values from a Beta distribution
+            gamma1 = tf.random.gamma([batch_size], alpha, dtype=tf.float32)
+            gamma2 = tf.random.gamma([batch_size], alpha, dtype=tf.float32)
+            lambda_vals = gamma1 / (gamma1 + gamma2)
+            # Linearly rescale to the specified area range (this does not change the distribution)
+            area_fraction = patch_area[0] + lambda_vals * (patch_area[1] - patch_area[0])
+        else:
+            # Sample from a uniform distribution
+            area_fraction = tf.random.uniform([batch_size], minval=patch_area[0], maxval=patch_area[1], dtype=tf.float32)
     else:
         # Constant area fraction
         area_fraction = tf.fill([batch_size], patch_area)
@@ -129,10 +133,10 @@ def gen_patch_mask(
 
     # Create coordinate grids
     grid_x, grid_y = tf.meshgrid(tf.range(img_width), tf.range(img_height))
-    grid_x = tf.broadcast_to(grid_x, image_shape[:3])
-    grid_y = tf.broadcast_to(grid_y, image_shape[:3])
-
+	
     # Add new axis for broadcasting
+    grid_x = grid_x[None, :, :]
+    grid_y = grid_y[None, :, :]
     x1 = x1[:, None, None]
     x2 = x2[:, None, None]
     y1 = y1[:, None, None]

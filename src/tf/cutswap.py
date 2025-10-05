@@ -16,10 +16,10 @@ class RandomCutSwap(tf.keras.Layer):
         Saliency-Guided Self-Supervised Learning for Image Anomaly Detection"
 
     For each image in the batch:
-    1. Sample a patch size based on the specified area and aspect ratio ranges.
-    2. Choose random locations in the image for two patches of the sampled size.
-       The two patches may overlap.
-    3. Swap the contents of the two patches.
+        1. Sample a patch size based on the specified area and aspect ratio ranges.
+        2. Choose random locations in the image for two patches of the sampled size.
+           The two patches may overlap.
+        3. Swap the contents of the two patches.
 
     Patch sizes and locations are sampled independently for each image, ensuring 
     variety across the batch.
@@ -39,18 +39,11 @@ class RandomCutSwap(tf.keras.Layer):
             A tuple of two floats specifying the range from which patch areas 
             are sampled. Values must be > 0 and < 1, representing fractions 
             of the image area.
-            Patch areas are sampled from a Beta distribution with shape parameters
-            `alpha` and beta=1.0.
-            
+.            
         patch_aspect_ratio:
             A tuple of two floats specifying the range from which patch height/width
             aspect ratios are sampled. Minimum value must be > 0.
             Patch aspect ratios are sampled from a uniform distribution.
-
-        alpha:
-            A float specifying the alpha parameter of the Beta distribution used
-            to sample patch areas. Set to 0 by default, making the distribution
-            uniform.
 
         augmentation_ratio:
             A float in the interval [0, 1] specifying the augmented/original
@@ -74,7 +67,6 @@ class RandomCutSwap(tf.keras.Layer):
     def __init__(self,
         patch_area: tuple[float, float] = (0.05, 0.3),
         patch_aspect_ratio: tuple[float, float] = (0.3, 3.0),
-        alpha: float = 1.0,
         augmentation_ratio: float = 1.0,
         bernoulli_mix: bool = False,
         **kwargs):
@@ -84,7 +76,6 @@ class RandomCutSwap(tf.keras.Layer):
         self.layer_name = 'RandomSwap'
         self.patch_area = patch_area
         self.patch_aspect_ratio = patch_aspect_ratio
-        self.alpha = alpha
         self.augmentation_ratio = augmentation_ratio
         self.bernoulli_mix = bernoulli_mix
 
@@ -95,7 +86,7 @@ class RandomCutSwap(tf.keras.Layer):
         """
         Checks the arguments passed to the `random_cutswap` function
         """
-        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.alpha, self.layer_name)
+        check_patch_sampling_args(self.patch_area, self.patch_aspect_ratio, self.layer_name)
         check_augment_mix_args(self.augmentation_ratio, self.bernoulli_mix, self.layer_name)
 
 
@@ -109,7 +100,7 @@ class RandomCutSwap(tf.keras.Layer):
             images = tf.expand_dims(images, axis=-1)
 
         # Sample the dimensions of the patches
-        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio, self.alpha)
+        patch_sizes = gen_patch_sizes(images, self.patch_area, self.patch_aspect_ratio)
 
         # Sample locations for the first patches and generate
         # a boolean mask (True inside the patches, False outside)
@@ -146,7 +137,6 @@ class RandomCutSwap(tf.keras.Layer):
             'layer_name': self.layer_name,
             'patch_area': self.patch_area,
             'patch_aspect_ratio': self.patch_aspect_ratio,
-            'alpha': self.alpha,
             'augmentation_ratio': self.augmentation_ratio,
             'bernoulli_mix': self.bernoulli_mix
         }
