@@ -110,12 +110,13 @@ def gen_patch_mask(
         of the patches.
     """
 
+    device = images.device
     batch_size, _, img_height, img_width = images.shape
     patch_h, patch_w = patch_size
 
     # Sample uniformly between 0 and 1
-    x_rand = torch.rand(batch_size, device=images.device)
-    y_rand = torch.rand(batch_size, device=images.device)
+    x_rand = torch.rand(batch_size, device=device)
+    y_rand = torch.rand(batch_size, device=device)
 
     # Calculate valid ranges for each patch
     max_x1 = (img_width - patch_w).float()
@@ -131,8 +132,8 @@ def gen_patch_mask(
     corners = torch.stack([y1, x1, y2, x2], dim=-1)
 
     # Create coordinate grids
-    grid_y, grid_x = torch.meshgrid(torch.arange(img_height, device=images.device), 
-                                     torch.arange(img_width, device=images.device), 
+    grid_y, grid_x = torch.meshgrid(torch.arange(img_height, device=device), 
+                                     torch.arange(img_width, device=device), 
                                      indexing='ij')
     
     # Add new axis for broadcasting
@@ -171,29 +172,30 @@ def gen_patch_contents(
         A tensor with the same shape as the images.
     """
 
+    device = images.device
     image_shape = images.shape
 
     if fill_method == 'black':
-        contents = torch.zeros(image_shape, dtype=torch.long, device=images.device)
+        contents = torch.zeros(image_shape, dtype=torch.long, device=device)
 
     elif fill_method == 'gray':
-        contents = torch.full(image_shape, 128, dtype=torch.long, device=images.device)
+        contents = torch.full(image_shape, 128, dtype=torch.long, device=device)
 
     elif fill_method == 'white':
-        contents = torch.full(image_shape, 255, dtype=torch.long, device=images.device)
+        contents = torch.full(image_shape, 255, dtype=torch.long, device=device)
 
     elif fill_method == 'mean_per_channel':
-        channel_means = images.mean(dim=(1, 2))
-        channel_means = channel_means.long()
-        contents = channel_means.unsqueeze(1).unsqueeze(2).expand(image_shape)
+        channel_means  = images.to(torch.float32).mean(dim=(2, 3))
+        channel_means = channel_means.to(torch.int32)
+        contents = torch.broadcast_to(channel_means[:, :, None, None], image_shape)
 
     elif fill_method == 'random':
-        color = torch.randint(0, 256, (image_shape[0], image_shape[-1]), 
-                             dtype=torch.long, device=images.device)
-        contents = color.unsqueeze(1).unsqueeze(2).expand(image_shape)
+        color = torch.randint(0, 256, (image_shape[0], image_shape[1]), 
+                             dtype=torch.long, device=device)
+        contents = torch.broadcast_to(color[:, :, None, None], image_shape)
 
     elif fill_method == 'noise':
-        contents = torch.randint(0, 256, image_shape, dtype=torch.long, device=images.device)
+        contents = torch.randint(0, 256, image_shape, dtype=torch.long, device=device)
 
     return contents
 

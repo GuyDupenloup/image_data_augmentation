@@ -32,7 +32,7 @@ def gen_patch_sizes(
 
         alpha:
             A float greater than 0, the shape parameter of the Beta distribution
-            used to sample patch area. If `alpha` is equal to 1.0 (default), 
+            used to sample patch areas. If `alpha` is equal to 1.0 (default), 
             the distribution is uniform.
 
     Returns:

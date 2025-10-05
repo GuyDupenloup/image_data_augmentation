@@ -64,91 +64,54 @@ def _display_images(image, image_aug, legend):
     plt.close()
 
 
-def _augment_images(images, labels, function):
+def _augment_images(images, labels, transform):
     """
-        Calls the data augmentation functions and returns the augmented images
+        Calls the data augmentation transforms and returns the augmented images
     """
-    if function == "RandomCutout":
+    if transform == "RandomCutout":
         cutout = RandomCutout(
             patch_area=0.1,
-            fill_method='noise',
+            fill_method='mean_per_channel',
             pixels_range=(0, 1),
             augmentation_ratio=1.0,
             bernoulli_mix=False
         )
         images_aug = cutout(images)
 
-    elif function == "RandomErasing":
+    elif transform == "RandomErasing":
         erasing = RandomErasing(
             patch_area=(0.05, 0.2),
             patch_aspect_ratio=(0.3, 3.0),
-            fill_method='noise',
+            fill_method='mean_per_channel',
             pixels_range=(0, 1),
             augmentation_ratio=1.0,
             bernoulli_mix=False
         )
         images_aug = erasing(images)
 
-    elif function == "RandomHideAndSeek":
+    elif transform == "RandomHideAndSeek":
         hide_and_seek = RandomHideAndSeek(
             grid_size=(4, 4),
             erased_patches=(0, 5),
-            fill_method='noise',
+            fill_method='mean_per_channel',
             pixels_range=(0, 1),
             augmentation_ratio=1.0,
             bernoulli_mix=False
         )
         images_aug = hide_and_seek(images)
 
-    elif function == "RandomGridMask":
+    elif transform == "RandomGridMask":
         grid_mask = RandomGridMask(
             unit_length=(0.2, 0.4),
             masked_ratio=0.5,
-            fill_method='noise',
+            fill_method='mean_per_channel',
             pixels_range=(0, 1),
             augmentation_ratio=1.0,
             bernoulli_mix=False
         )
         images_aug = grid_mask(images)
 
-    elif function == "RandomCutBlur":
-        cutblur = RandomCutBlur(
-            patch_area=(0.05, 0.3),
-            patch_aspect_ratio=(0.3, 3.0),
-            blur_factor=0.1,
-            augmentation_ratio=1.0,
-            bernoulli_mix=False
-        )
-        images_aug = cutblur(images)
-
-    elif function == "RandomCutPaste":
-        cutpaste = RandomCutPaste(
-            patch_area=(0.05, 0.3),
-            patch_aspect_ratio=(0.3, 3.0),
-            augmentation_ratio=1.0,
-            bernoulli_mix=False
-        )
-        images_aug = cutpaste(images)
-
-    elif function == "RandomCutSwap":
-        cutswap = RandomCutSwap(
-            patch_area=(0.05, 0.3),
-            patch_aspect_ratio=(0.3, 3.0),
-            augmentation_ratio=1.0,
-            bernoulli_mix=False
-        )
-        images_aug = cutswap(images)
-
-    elif function == "RandomCutThumbnail":
-        cut_thumbnail = RandomCutThumbnail(
-            thumbnail_area=0.1,
-            resize_method='bilinear',
-            augmentation_ratio=1.0,
-            bernoulli_mix=False
-        )
-        images_aug = cut_thumbnail(images)
-
-    elif function == "RandomCutMix":
+    elif transform == "RandomCutMix":
         cutmix = RandomCutMix(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
@@ -158,7 +121,7 @@ def _augment_images(images, labels, function):
         )
         images_aug, _ = cutmix((images, labels))
 
-    elif function == "RandomMixup":
+    elif transform == "RandomMixup":
         mixup = RandomMixup(
             alpha=1.0,
             augmentation_ratio=1.0,
@@ -166,26 +129,63 @@ def _augment_images(images, labels, function):
         )
         images_aug, _ = mixup((images, labels))
 
+    elif transform == "RandomCutBlur":
+        cutblur = RandomCutBlur(
+            patch_area=(0.05, 0.3),
+            patch_aspect_ratio=(0.3, 3.0),
+            blur_factor=0.1,
+            augmentation_ratio=1.0,
+            bernoulli_mix=False
+        )
+        images_aug = cutblur(images)
+
+    elif transform == "RandomCutThumbnail":
+        cut_thumbnail = RandomCutThumbnail(
+            thumbnail_area=0.1,
+            resize_method='bilinear',
+            augmentation_ratio=1.0,
+            bernoulli_mix=False
+        )
+        images_aug = cut_thumbnail(images)
+
+    elif transform == "RandomCutPaste":
+        cutpaste = RandomCutPaste(
+            patch_area=(0.05, 0.3),
+            patch_aspect_ratio=(0.3, 3.0),
+            augmentation_ratio=1.0,
+            bernoulli_mix=False
+        )
+        images_aug = cutpaste(images)
+
+    elif transform == "RandomCutSwap":
+        cutswap = RandomCutSwap(
+            patch_area=(0.05, 0.3),
+            patch_aspect_ratio=(0.3, 3.0),
+            augmentation_ratio=1.0,
+            bernoulli_mix=False
+        )
+        images_aug = cutswap(images)
+
     else:
-        raise ValueError(f"Unknown function: {function}")
+        raise ValueError(f"Unknown transform: {transform}")
 
     return images_aug
 
 
-def run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed):
+def run_test(image_size, images_per_transform, grayscale, test_list, shuffling_seed):
 
-    batch_size = max(images_per_function, 4)
+    batch_size = max(images_per_transform, 4)
     data_loader = _get_data_loader(image_size, batch_size, shuffling_seed)
 
     for i, (images, labels) in enumerate(data_loader):
         if grayscale:
             images = images[:, 0, :, :]  # take first channel
 
-        print(f"Running '{test_list[i]}'")
+        print(f"Testing transform '{test_list[i]}'")
         images_aug = _augment_images(images, labels, test_list[i])
 
         # Plot original vs augmented images
-        for j in range(images_per_function):
+        for j in range(images_per_transform):
             _display_images(images[j], images_aug[j], test_list[i])
 
         if i == len(test_list) - 1:
@@ -195,8 +195,8 @@ def run_test(image_size, images_per_function, grayscale, test_list, shuffling_se
 def main():
 
     image_size = (224, 224)
-    images_per_function = 4
-    grayscale = True
+    images_per_transform = 4
+    grayscale = False
     shuffling_seed = None   # Set to an int value to always see the same sequence of images
 
     test_list = [
@@ -204,15 +204,15 @@ def main():
         'RandomErasing',
         'RandomHideAndSeek',
         'RandomGridMask',
-        'RandomCutBlur',
-        'RandomCutPaste',
-        'RandomCutSwap',
-        'RandomCutThumbnail',
         'RandomCutMix',
         'RandomMixup',
+        'RandomCutBlur',
+        'RandomCutThumbnail',
+        'RandomCutPaste',
+        'RandomCutSwap',
     ]
 
-    run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)
+    run_test(image_size, images_per_transform, grayscale, test_list, shuffling_seed)
 
 
 if __name__ == '__main__':
