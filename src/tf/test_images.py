@@ -52,19 +52,19 @@ def _display_images(image, image_aug, function_name):
     plt.close()
 
 
-def _augment_images(images, labels, function):
+def _augment_images(images, labels, test):
     """
     Calls the data augmentation functions and returns the augmented images
     """
     
-    if function == 'RandomCutout':
+    if test == 'RandomCutout':
         cutout = RandomCutout(
             patch_area=0.1,
             fill_method='black'
         )
         images_aug = cutout(images)
 
-    elif function == 'RandomErasing':
+    elif test == 'RandomErasing':
         erasing = RandomErasing(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
@@ -72,7 +72,7 @@ def _augment_images(images, labels, function):
         )
         images_aug = erasing(images)
 
-    elif function == 'RandomHideAndSeek':
+    elif test == 'RandomHideAndSeek':
         hide_and_seek = RandomHideAndSeek(
             grid_size=(4, 4),
             erased_patches=(1, 5),
@@ -80,7 +80,7 @@ def _augment_images(images, labels, function):
         )
         images_aug = hide_and_seek(images)
 
-    elif function == 'RandomGridMask':
+    elif test == 'RandomGridMask':
         grid_mask = RandomGridMask(
             unit_length=(0.2, 0.4),
             masked_ratio=0.5,
@@ -88,35 +88,7 @@ def _augment_images(images, labels, function):
         )
         images_aug = grid_mask(images)
 
-    elif function == 'RandomCutBlur':
-        cutblur = RandomCutBlur(
-            patch_area=(0.05, 0.3),
-            patch_aspect_ratio=(0.3, 3.0),
-            blur_factor=0.2
-        )
-        images_aug = cutblur(images)
-
-    elif function == 'RandomCutPaste':
-        cutpaste = RandomCutPaste(
-            patch_area=(0.1, 0.3),
-            patch_aspect_ratio=(0.3, 3.0)
-        )
-        images_aug = cutpaste(images)
-
-    elif function == 'RandomCutSwap':
-        cutsawp = RandomCutSwap(
-            patch_area=(0.1, 0.3),
-            patch_aspect_ratio=(0.3, 2.0)
-        )
-        images_aug = cutsawp(images)
-
-    elif function == 'RandomCutThumbnail':
-        cut_thumbnail = RandomCutThumbnail(
-            thumbnail_area=0.1
-        )
-        images_aug = cut_thumbnail(images)
-
-    elif function == 'random_cutmix':
+    elif test == 'random_cutmix':
         images_aug, _ = random_cutmix(
             images,
             labels,
@@ -124,12 +96,42 @@ def _augment_images(images, labels, function):
             alpha=1.0
         )
 
-    elif function == 'random_mixup':
+    elif test == 'random_mixup':
         images_aug, _ = random_mixup(
             images,
             labels,
             alpha=1.0
         )
+
+    elif test == 'RandomCutBlur':
+        cutblur = RandomCutBlur(
+            patch_area=(0.05, 0.3),
+            patch_aspect_ratio=(0.3, 3.0),
+            blur_factor=0.2
+        )
+        images_aug = cutblur(images)
+
+    elif test == 'RandomCutThumbnail':
+        cut_thumbnail = RandomCutThumbnail(
+            thumbnail_area=0.1
+        )
+        images_aug = cut_thumbnail(images)
+
+    elif test == 'RandomCutPaste':
+        cutpaste = RandomCutPaste(
+            patch_area=(0.1, 0.3),
+            patch_aspect_ratio=(0.3, 3.0)
+        )
+        images_aug = cutpaste(images)
+
+    elif test == 'RandomCutSwap':
+        cutsawp = RandomCutSwap(
+            patch_area=(0.1, 0.3),
+            patch_aspect_ratio=(0.3, 2.0)
+        )
+        images_aug = cutsawp(images)
+
+
     else:
         raise ValueError(f"Unknown data augmentation function `{function}`")
 
@@ -148,7 +150,7 @@ def _run_test(image_size, images_per_function, grayscale, test_list, shuffling_s
         if grayscale:
             images = images[..., 0]
 
-        print(f"Running '{test_list[i]}'")
+        print(f"Testing '{test_list[i]}'")
         images_aug = _augment_images(images, labels, test_list[i])
 
         # Plot the original and augmented images side-by-side
@@ -170,13 +172,13 @@ def main():
         'RandomCutout', 
         'RandomErasing',
         'RandomHideAndSeek',
-        'RandomGridMask', 
-        'RandomCutBlur',
-        'RandomCutPaste',
-        'RandomCutSwap', 
-        'RandomCutThumbnail',
+        'RandomGridMask',
         'random_cutmix',
         'random_mixup'
+        'RandomCutThumbnail',
+        'RandomCutBlur',
+        'RandomCutPaste',
+        'RandomCutSwap' 
     ]
 
     _run_test(image_size, images_per_function, grayscale, test_list, shuffling_seed)
