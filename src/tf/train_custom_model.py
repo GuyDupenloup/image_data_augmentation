@@ -16,6 +16,7 @@ from cut_thumbnail import RandomCutThumbnail
 from cutmix import random_cutmix
 from mixup import random_mixup
 
+tf.config.run_functions_eagerly(True)
 
 class CustomModel(tf.keras.Model):
 
@@ -24,11 +25,12 @@ class CustomModel(tf.keras.Model):
 
         self.base_model = base_model
 
-        # Initialize Tensorflow augmentation layers
+        # Initialize augmentation layers
         self.random_contrast = RandomContrast(factor=0.2)
         self.random_brightness = RandomBrightness(factor=0.2)
         self.random_flip = RandomFlip(mode='horizontal')
         self.random_rotation = RandomRotation(factor=0.05)
+
         self.random_cutout = RandomCutout(
             patch_area=0.3,
             fill_method='black',
@@ -39,7 +41,6 @@ class CustomModel(tf.keras.Model):
         self.random_erasing = RandomErasing(
             patch_area=(0.05, 0.3),
             patch_aspect_ratio=(0.3, 3.0),
-            alpha=1.0,
             fill_method='black',
             augmentation_ratio=0.1,
             bernoulli_mix=False
@@ -61,22 +62,7 @@ class CustomModel(tf.keras.Model):
         self.random_cutblur = RandomCutBlur(
             patch_area=(0.2, 0.4),
             patch_aspect_ratio=(0.3, 0.4),
-            alpha=1.0,
             blur_factor=0.2,
-            augmentation_ratio=0.1,
-            bernoulli_mix=False
-        )
-        self.random_cutpaste = RandomCutPaste(
-            patch_area=(0.1, 0.3),
-            patch_aspect_ratio=(0.3, 2.0),
-            alpha=1.0,
-            augmentation_ratio=0.1,
-            bernoulli_mix=False
-        )
-        self.random_cutswap = RandomCutSwap(
-            patch_area=(0.1, 0.3),
-            patch_aspect_ratio=(0.3, 2.0),
-            alpha=1.0,
             augmentation_ratio=0.1,
             bernoulli_mix=False
         )
@@ -85,12 +71,22 @@ class CustomModel(tf.keras.Model):
             augmentation_ratio=0.1,
             bernoulli_mix=False
         )
-
+        self.random_cutpaste = RandomCutPaste(
+            patch_area=(0.1, 0.3),
+            patch_aspect_ratio=(0.3, 2.0),
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
+        self.random_cutswap = RandomCutSwap(
+            patch_area=(0.1, 0.3),
+            patch_aspect_ratio=(0.3, 2.0),
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
 
     def call(self, inputs, training=None):
         return self.base_model(inputs, training=training)
     
-
     def train_step(self, data):
         images, labels = data
 
@@ -104,10 +100,27 @@ class CustomModel(tf.keras.Model):
         images = self.random_erasing(images, training=True)
         images = self.random_hide_and_seek(images, training=True)
         images = self.random_grid_mask(images, training=True)
-        images = self.random_cutpaste(images, training=True)
-        images = self.random_cutswap(images, training=True)
         images = self.random_cutblur(images, training=True)
         images = self.random_cut_thumbnail(images, training=True)
+        images = self.random_cutpaste(images, training=True)
+        images = self.random_cutswap(images, training=True)
+
+        images, labels = random_cutmix(
+            images,
+            labels,
+            patch_area=(0.05, 0.3),
+            patch_aspect_ratio=(0.3, 3.0),
+            alpha=1.0,
+            augmentation_ratio=0.1,    # Augment 10% of images
+            bernoulli_mix=False
+        )
+        images, labels = random_mixup(
+            images,
+            labels,
+            alpha=1.0,
+            augmentation_ratio=0.1,
+            bernoulli_mix=False
+        )
 
         with tf.GradientTape() as tape:
             # Make a prediction and compute the loss value
@@ -183,11 +196,11 @@ def get_base_model(input_shape, num_classes):
 
 def train():
 
-    image_shape = (128, 128, 3)
+    image_shape = (64, 64, 3)
     rescaling = (1/255., 0)
     num_classes = 5
     batch_size = 32
-    epochs = 5
+    epochs = 1
     
     pixels_range = (0, 1)
 
@@ -201,7 +214,7 @@ def train():
     # Compile the model
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-        loss=tf.keras.losses.CategoricalCrossentropy(),
+        loss=tf.keras.losses.CategoricalCrossentropy(),   # One-hot labels
         metrics=['accuracy']
     )
 

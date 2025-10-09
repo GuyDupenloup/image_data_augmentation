@@ -103,7 +103,7 @@ def random_mixup(
     images_aug = lambda_vals * images + (1 - lambda_vals) * shuffled_images
 
     # Update labels
-    lambda_vals =lambda_vals[:, None]   # For broadcasting
+    lambda_vals = tf.reshape(lambda_vals, [batch_size, 1])
     labels = tf.cast(labels, tf.float32)
     labels_aug = lambda_vals * labels + (1.0 - lambda_vals) * shuffled_labels
 
